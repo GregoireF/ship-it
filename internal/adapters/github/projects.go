@@ -106,6 +106,7 @@ type projectItemJSON struct {
 	ID          int64  `json:"id"`
 	ContentType string `json:"content_type"`
 	Content     *struct {
+		ID            int64  `json:"id"`
 		Number        int    `json:"number"`
 		RepositoryURL string `json:"repository_url"`
 	} `json:"content"`
@@ -175,12 +176,41 @@ func (c *Client) ProjectItems(ctx context.Context, repo forge.Repository, projec
 }
 
 // AddProjectItem implements ports.Projects (POST …/items with the issue's id).
+// An issue already in the project is not an error: GitHub's built-in
+// workflow "Auto-add sub-issues to project", on by default, adds a sub-issue
+// as soon as its parent is there, and then answers 422 "Content already
+// exists in this project". The item it added is the one returned.
 func (c *Client) AddProjectItem(ctx context.Context, repo forge.Repository, project forge.Project, issueID int64) (int64, error) {
 	var out struct {
 		ID int64 `json:"id"`
 	}
 	_, err := c.projectCall(ctx, repo, http.MethodPost, projectPath(project)+"/items", map[string]any{"type": "Issue", "id": issueID}, &out)
+	var apiErr *APIError
+	if errors.As(err, &apiErr) && apiErr.Status == http.StatusUnprocessableEntity && strings.Contains(strings.ToLower(apiErr.Error()), "already exists") {
+		if id, found, ferr := c.projectItemOf(ctx, repo, project, issueID); ferr == nil && found {
+			return id, nil
+		}
+	}
 	return out.ID, err
+}
+
+// projectItemOf finds the item of an issue in a project.
+func (c *Client) projectItemOf(ctx context.Context, repo forge.Repository, project forge.Project, issueID int64) (int64, bool, error) {
+	next := projectPath(project) + "/items?per_page=100"
+	for page := 0; next != "" && page < maxProjectPages; page++ {
+		var out []projectItemJSON
+		header, err := c.projectCall(ctx, repo, http.MethodGet, next, nil, &out)
+		if err != nil {
+			return 0, false, err
+		}
+		for _, it := range out {
+			if it.Content != nil && it.Content.ID == issueID {
+				return it.ID, true, nil
+			}
+		}
+		next = nextPage(header.Get("Link"), c.baseURL(repo))
+	}
+	return 0, false, nil
 }
 
 // SetProjectField implements ports.Projects (PATCH …/items/{id} with

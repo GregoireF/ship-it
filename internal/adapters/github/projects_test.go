@@ -158,3 +158,33 @@ func TestIssueAssignees(t *testing.T) {
 		t.Errorf("call = %s, want %s", calls[2], want)
 	}
 }
+
+// TestAddProjectItemAlreadyThere: GitHub's "Auto-add sub-issues to project"
+// workflow adds a sub-issue as soon as its parent is in the project, so ship's
+// own POST gets 422 "Content already exists in this project" (seen on
+// ship-it's roadmap). The item GitHub added is used instead, on any page.
+func TestAddProjectItemAlreadyThere(t *testing.T) {
+	base := "/users/ada/projectsV2/3"
+	var c *Client
+	c = newClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == base+"/items" && r.Method == http.MethodPost:
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			fmt.Fprint(w, `{"message":"Content already exists in this project"}`)
+		case r.URL.Path == base+"/items" && r.URL.Query().Get("after") == "":
+			w.Header().Set("Link", `<`+c.BaseURL+base+`/items?per_page=100&after=X>; rel="next"`)
+			fmt.Fprint(w, `[{"id":70,"content_type":"Issue","content":{"id":1011,"number":11}}]`)
+		case r.URL.Path == base+"/items":
+			fmt.Fprint(w, `[{"id":71,"content_type":"Issue","content":{"id":1012,"number":12}}]`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+	project := forge.Project{Kind: forge.ProjectOfUser, Owner: "ada", Number: 3}
+	if id, err := c.AddProjectItem(context.Background(), repo, project, 1012); err != nil || id != 71 {
+		t.Fatalf("AddProjectItem = %d, %v; want the item GitHub added, 71", id, err)
+	}
+	if _, err := c.AddProjectItem(context.Background(), repo, project, 9999); err == nil {
+		t.Error("an issue the project lacks: the 422 must stay an error")
+	}
+}
