@@ -173,7 +173,7 @@ jobs:
           # The sign-off names the author of the commit: the App's bot user,
           # or github-actions[bot] with the job token.
           if [ -n "$APP_SLUG" ]; then
-            login="$APP_SLUG[bot]"
+            login="${APP_SLUG}[bot]"
             id="$(gh api "users/$(jq -rn --arg l "$login" '$l|@uri')" --jq .id)"
           else
             login="github-actions[bot]"
