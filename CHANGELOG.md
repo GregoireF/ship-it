@@ -4,6 +4,20 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-07
+
+Fixes found by running ship-it on real repositories, and a safer secret fingerprint.
+
+### Fixed
+
+- `ship log` and `ship status` showed raw message keys after a stack, a stack sync or merge, a roadmap sync, a fix or a tidy; `ship status` said `ship undo` refuses a publication, though it closes it once you confirm, and showed "unknown (offline)" for the default branch (#17).
+- `ship stack` put a test file and the file it tests in two layers, so the bottom pull request did not build; a test file now stays with its subject (#18).
+- `ship roadmap sync` failed on a milestone without a due date (#19), and on an issue that GitHub's "Auto-add sub-issues to project" workflow had already put on the board (#81).
+
+### Security
+
+- The fingerprint of a secret finding, which `ship.secrets.allow` lists, is now a PBKDF2-HMAC-SHA256 of the value (600 000 iterations, salted with the rule id) instead of a plain SHA-256: a fingerprint committed in `.github/ship.json` no longer lets anyone find a weak secret back by brute force. The fingerprints of 0.1 are still accepted during 0.x; ship prints the new one to replace them.
+
 ## [0.1.0] - 2026-11-07
 
 First release.
@@ -70,5 +84,6 @@ First release.
 - Licensed under the Apache License 2.0.
 - English and French interface.
 
-[Unreleased]: https://github.com/GregoireF/ship-it/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/GregoireF/ship-it/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/GregoireF/ship-it/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/GregoireF/ship-it/releases/tag/v0.1.0
