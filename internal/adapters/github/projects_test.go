@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/GregoireF/ship-it/internal/core/forge"
 	"github.com/GregoireF/ship-it/internal/core/roadmap"
@@ -162,15 +163,22 @@ func TestIssueAssignees(t *testing.T) {
 // TestAddProjectItemAlreadyThere: GitHub's "Auto-add sub-issues to project"
 // workflow adds a sub-issue as soon as its parent is in the project, so ship's
 // own POST gets 422 "Content already exists in this project" (seen on
-// ship-it's roadmap). The item GitHub added is used instead, on any page.
+// ship-it's roadmap). The item GitHub added is used instead, on any page, and
+// even when it shows in the listing only a moment after the 422.
 func TestAddProjectItemAlreadyThere(t *testing.T) {
+	defer func(d time.Duration) { projectItemLookupDelay = d }(projectItemLookupDelay)
+	projectItemLookupDelay = time.Millisecond
 	base := "/users/ada/projectsV2/3"
+	listings := 0
 	var c *Client
 	c = newClient(t, func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == base+"/items" && r.Method == http.MethodPost:
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			fmt.Fprint(w, `{"message":"Content already exists in this project"}`)
+		case r.URL.Path == base+"/items" && r.URL.Query().Get("after") == "" && listings == 0:
+			listings++ // GitHub's workflow has not finished yet
+			fmt.Fprint(w, `[]`)
 		case r.URL.Path == base+"/items" && r.URL.Query().Get("after") == "":
 			w.Header().Set("Link", `<`+c.BaseURL+base+`/items?per_page=100&after=X>; rel="next"`)
 			fmt.Fprint(w, `[{"id":70,"content_type":"Issue","content":{"id":1011,"number":11}}]`)
