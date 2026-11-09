@@ -18,7 +18,7 @@ import (
 
 // everyCommand is every command and subcommand of ship, as typed.
 var everyCommand = [][]string{
-	{}, {"help"}, {"plan"}, {"doctor"}, {"types"}, {"version"}, {"branch"},
+	{}, {"help"}, {"plan"}, {"doctor"}, {"types"}, {"explain"}, {"version"}, {"branch"},
 	{"checkpoint"}, {"checkpoint", "create"}, {"checkpoint", "list"}, {"checkpoint", "restore"},
 	{"undo"}, {"gc"}, {"trace"}, {"publish"}, {"status"}, {"tidy"}, {"log"}, {"fix"}, {"label"},
 	{"stack"}, {"stack", "status"}, {"stack", "sync"}, {"stack", "merge"}, {"stack", "publish"},

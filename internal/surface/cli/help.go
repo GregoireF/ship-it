@@ -24,6 +24,7 @@ var commandArguments = map[string]string{
 	"config set":         "<key> <value>",
 	"config unset":       "<key>",
 	"config explain":     "<key>",
+	"explain":            "[<code>]",
 	"trace":              "[<run>]",
 }
 
