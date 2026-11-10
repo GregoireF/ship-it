@@ -1,0 +1,221 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Grégoire Favreau
+#
+# Tests the install scripts (#97): on every change to scripts/ and once a
+# week, scripts/install.sh installs the latest published release on Ubuntu,
+# in an Alpine container and on macOS, and scripts/install.ps1 on Windows
+# (PowerShell 7 and 5.1); then `ship version` must answer. Each script must
+# also stop on a wrong checksum, with its message, before installing
+# anything. Both install into a temporary directory (SHIP_INSTALL_DIR): the
+# runner's home stays untouched.
+name: install-scripts
+
+on:
+  pull_request:
+    paths:
+      - scripts/**
+      - .github/workflows/install-scripts-ci.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/**
+      - .github/workflows/install-scripts-ci.yml
+  schedule:
+    # Weekly, Monday 05:53 UTC (a slot no other workflow uses): the scripts
+    # must keep working against the latest release even without a change.
+    - cron: "53 5 * * 1"
+  workflow_dispatch:
+
+# Nothing by default; each job asks for what it needs (zizmor: excessive-permissions).
+permissions: {}
+
+concurrency:
+  group: install-scripts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # scripts/install.sh on the hosted runners. Neither cosign nor a logged-in
+  # gh is on a runner, so the script takes its documented fallback: the
+  # SHA-256 of checksums.txt.
+  install-sh:
+    name: install.sh (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    permissions:
+      contents: read # the install script of this commit, nothing else
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: install the latest release into a temporary directory
+        env:
+          SHIP_INSTALL_DIR: ${{ runner.temp }}/ship-bin
+        run: |
+          set -euo pipefail
+          sh scripts/install.sh
+      - name: ship version answers
+        env:
+          SHIP_BIN: ${{ runner.temp }}/ship-bin/ship
+        run: |
+          set -euo pipefail
+          out=$("$SHIP_BIN" version)
+          [ -n "$out" ] || { echo "ship version printed nothing" >&2; exit 1; }
+          echo "$out"
+      # A local release folder (SHIP_INSTALL_BASE_URL, made for tests and
+      # mirrors): the archive is not an archive and checksums.txt names a hash
+      # no download has. The script must stop on the checksum, with its
+      # message, and install nothing. No network and no release needed.
+      - name: a wrong checksum stops the install
+        env:
+          SHIP_INSTALL_DIR: ${{ runner.temp }}/ship-bad
+        run: |
+          set -euo pipefail
+          case "$(uname -s)/$(uname -m)" in
+            Linux/x86_64 | Linux/amd64) file=ship_0.0.0-test_linux_amd64.tar.gz ;;
+            Linux/aarch64 | Linux/arm64) file=ship_0.0.0-test_linux_arm64.tar.gz ;;
+            Darwin/x86_64 | Darwin/amd64) file=ship_0.0.0-test_darwin_amd64.tar.gz ;;
+            Darwin/aarch64 | Darwin/arm64) file=ship_0.0.0-test_darwin_arm64.tar.gz ;;
+            *) echo "unsupported runner: $(uname -s)/$(uname -m)" >&2; exit 1 ;;
+          esac
+          dir="$RUNNER_TEMP/fake-release"
+          mkdir -p "$dir"
+          printf 'not an archive\n' > "$dir/$file"
+          printf '%064d  %s\n' 0 "$file" > "$dir/checksums.txt"
+          if out=$(SHIP_VERSION=0.0.0-test SHIP_INSTALL_BASE_URL="file://$dir" \
+              sh scripts/install.sh 2>&1); then
+            echo "install.sh accepted a wrong checksum:" >&2
+            printf '%s\n' "$out" >&2
+            exit 1
+          fi
+          printf '%s\n' "$out"
+          case "$out" in
+            *"SHA-256 mismatch"*) ;;
+            *) echo "install.sh stopped for the wrong reason" >&2; exit 1 ;;
+          esac
+
+  # The same script in an Alpine container: busybox sh, tar and sha256sum
+  # instead of the hosted runners' GNU tools (the base of the release image).
+  install-sh-alpine:
+    name: install.sh (alpine container)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Same tag and index digest as build/docker/Dockerfile, checked on Docker
+    # Hub on 2026-10-23; Dependabot keeps the Dockerfile's copy up to date.
+    container: alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+    permissions:
+      contents: read # the install script of this commit, nothing else
+    defaults:
+      run:
+        shell: sh
+    steps:
+      # git for the checkout, curl for the script (busybox wget cannot
+      # download from a file:// base URL).
+      - name: add git and curl
+        run: apk add --no-cache git curl
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: install the latest release into a temporary directory
+        env:
+          SHIP_INSTALL_DIR: /tmp/ship-bin
+        run: sh scripts/install.sh
+      - name: ship version answers
+        env:
+          SHIP_BIN: /tmp/ship-bin/ship
+        run: |
+          set -eu
+          out=$("$SHIP_BIN" version)
+          [ -n "$out" ] || { echo "ship version printed nothing" >&2; exit 1; }
+          echo "$out"
+      - name: a wrong checksum stops the install
+        env:
+          SHIP_INSTALL_DIR: /tmp/ship-bad
+        run: |
+          set -eu
+          # The container is amd64, like the runner it sits on.
+          file=ship_0.0.0-test_linux_amd64.tar.gz
+          dir=/tmp/fake-release
+          mkdir -p "$dir"
+          printf 'not an archive\n' > "$dir/$file"
+          printf '%064d  %s\n' 0 "$file" > "$dir/checksums.txt"
+          if out=$(SHIP_VERSION=0.0.0-test SHIP_INSTALL_BASE_URL="file://$dir" \
+              sh scripts/install.sh 2>&1); then
+            echo "install.sh accepted a wrong checksum:" >&2
+            printf '%s\n' "$out" >&2
+            exit 1
+          fi
+          printf '%s\n' "$out"
+          case "$out" in
+            *"SHA-256 mismatch"*) ;;
+            *) echo "install.sh stopped for the wrong reason" >&2; exit 1 ;;
+          esac
+
+  # scripts/install.ps1 on Windows, under PowerShell 7 (pwsh) and Windows
+  # PowerShell 5.1: the two shells the script documents support for.
+  install-ps1:
+    name: install.ps1 (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read # the install script of this commit, nothing else
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: install the latest release into a temporary directory (PowerShell 7)
+        env:
+          SHIP_INSTALL_DIR: ${{ runner.temp }}\ship-bin
+        shell: pwsh
+        run: ./scripts/install.ps1
+      - name: ship version answers (PowerShell 7)
+        env:
+          SHIP_BIN: ${{ runner.temp }}\ship-bin\ship.exe
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & "$env:SHIP_BIN" version
+          if ($LASTEXITCODE -ne 0) { Write-Error "ship version failed with exit code $LASTEXITCODE"; exit $LASTEXITCODE }
+      - name: install the latest release into a temporary directory (Windows PowerShell 5.1)
+        env:
+          SHIP_INSTALL_DIR: ${{ runner.temp }}\ship-bin-51
+        shell: powershell
+        run: ./scripts/install.ps1
+      - name: ship version answers (Windows PowerShell 5.1)
+        env:
+          SHIP_BIN: ${{ runner.temp }}\ship-bin-51\ship.exe
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & "$env:SHIP_BIN" version
+          if ($LASTEXITCODE -ne 0) { Write-Error "ship version failed with exit code $LASTEXITCODE"; exit $LASTEXITCODE }
+      # A local release folder (SHIP_INSTALL_BASE_URL, made for tests and
+      # mirrors): the archive is not an archive and checksums.txt names a hash
+      # no download has. The script must stop on the checksum, with its
+      # message, and install nothing. No network and no release needed.
+      - name: a wrong checksum stops the install
+        env:
+          SHIP_INSTALL_DIR: ${{ runner.temp }}\ship-bad
+        shell: pwsh
+        run: |
+          $fake = Join-Path $env:RUNNER_TEMP 'fake-release'
+          New-Item -ItemType Directory -Force -Path $fake | Out-Null
+          $archive = 'ship_0.0.0-test_windows_amd64.zip'
+          Set-Content -LiteralPath (Join-Path $fake $archive) -Value 'not an archive'
+          Set-Content -LiteralPath (Join-Path $fake 'checksums.txt') -Value (('0' * 64) + '  ' + $archive)
+          $env:SHIP_VERSION = '0.0.0-test'
+          $env:SHIP_INSTALL_BASE_URL = $fake
+          try {
+            & ./scripts/install.ps1
+            Write-Error 'install.ps1 accepted a wrong checksum'
+            exit 1
+          } catch {
+            if ($_.Exception.Message -notmatch 'SHA-256 mismatch') {
+              Write-Error "install.ps1 stopped for the wrong reason: $($_.Exception.Message)"
+              exit 1
+            }
+            Write-Host "refused as expected: $($_.Exception.Message)"
+          }
