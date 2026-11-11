@@ -140,6 +140,7 @@ jobs:
             build/ship-it-action/action.yml
             build/ship-it-action/README.md
             build/ship-it-action/LICENSE
+            internal/i18n/faults_gen.go
         run: |
           set -euo pipefail
           dir="$RUNNER_TEMP/generated"
