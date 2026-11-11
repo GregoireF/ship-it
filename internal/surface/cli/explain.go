@@ -45,8 +45,9 @@ func (r runner) explainCode(arg string, asJSON bool) int {
 		r.status(i18n.Render(r.lang, "cli.explain.unknown", map[string]string{"code": strings.TrimSpace(arg)}))
 		return ExitUsage
 	}
+	e := r.explainedOf(page)
 	if asJSON {
-		return r.writeJSON(page)
+		return r.writeJSON(e)
 	}
 	out := r.streams.Out
 	if page.Note != "" {
@@ -57,31 +58,47 @@ func (r runner) explainCode(arg string, asJSON bool) int {
 	fmt.Fprintln(out, statusLine(page.Status))
 	// The same structure as the errors page: what ship prints first, then
 	// what it suggests, a doctor remedy or what ship fix does.
-	var messages, remedies, fixes []string
-	for _, key := range page.Keys {
-		switch {
-		case strings.HasPrefix(key, "doctor.remedy."):
-			remedies = append(remedies, strings.Join(strings.Fields(i18n.Render(r.lang, key, nil)), " "))
-		case strings.HasPrefix(key, "fix."):
-			fixes = append(fixes, i18n.Render(r.lang, key, nil))
-		default:
-			messages = append(messages, strings.ReplaceAll(i18n.Render(r.lang, key, nil), "\n", " "))
-		}
-	}
-	if len(messages) > 0 {
+	if len(e.Messages) > 0 {
 		fmt.Fprintln(out)
-		for _, message := range messages {
+		for _, message := range e.Messages {
 			fmt.Fprintln(out, message)
 		}
 	}
-	if len(remedies) > 0 {
+	if len(e.Remedies) > 0 {
 		fmt.Fprintln(out)
-		fmt.Fprintln(out, i18n.Render(r.lang, "cli.explain.remedy", map[string]string{"remedies": strings.Join(remedies, " · ")}))
+		fmt.Fprintln(out, i18n.Render(r.lang, "cli.explain.remedy", map[string]string{"remedies": strings.Join(e.Remedies, " · ")}))
 	}
-	for _, fix := range fixes {
+	for _, fix := range e.Fixes {
 		fmt.Fprintln(out, i18n.Render(r.lang, "cli.explain.fix", map[string]string{"fix": strings.TrimSuffix(fix, ".")}))
 	}
 	return ExitOK
+}
+
+// explained is the JSON shape of one page: the generated fields of the
+// reference, plus the lines the human renderer prints, rendered in the
+// language of the run, so --json and the plain output tell the same story.
+type explained struct {
+	i18n.FaultPage
+	Messages []string `json:"messages,omitempty"`
+	Remedies []string `json:"remedies,omitempty"`
+	Fixes    []string `json:"fixes,omitempty"`
+}
+
+// explainedOf renders the page's catalogue keys the way the human output
+// does: what ship prints, the doctor remedies and what ship fix does.
+func (r runner) explainedOf(page i18n.FaultPage) explained {
+	e := explained{FaultPage: page}
+	for _, key := range page.Keys {
+		switch {
+		case strings.HasPrefix(key, "doctor.remedy."):
+			e.Remedies = append(e.Remedies, strings.Join(strings.Fields(i18n.Render(r.lang, key, nil)), " "))
+		case strings.HasPrefix(key, "fix."):
+			e.Fixes = append(e.Fixes, i18n.Render(r.lang, key, nil))
+		default:
+			e.Messages = append(e.Messages, strings.ReplaceAll(i18n.Render(r.lang, key, nil), "\n", " "))
+		}
+	}
+	return e
 }
 
 // statusLine renders an exit status the way the errors page does: a capital

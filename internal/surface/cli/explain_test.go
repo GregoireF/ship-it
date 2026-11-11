@@ -85,7 +85,8 @@ func TestExplainListsTheCodes(t *testing.T) {
 func TestExplainJSON(t *testing.T) {
 	code, stdout, _ := run("explain", "--json", "SHIP-E0618")
 	if code != ExitOK || !strings.HasPrefix(stdout, "{") ||
-		!strings.Contains(stdout, `"code": "SHIP-E0618"`) || !strings.Contains(stdout, `"keys"`) {
+		!strings.Contains(stdout, `"code": "SHIP-E0618"`) || !strings.Contains(stdout, `"keys"`) ||
+		!strings.Contains(stdout, `"messages"`) || !strings.Contains(stdout, "does not answer") {
 		t.Errorf("explain --json SHIP-E0618: exit %d\n%s", code, stdout)
 	}
 	if code, stdout, _ := run("explain", "--json"); code != ExitOK || !strings.HasPrefix(stdout, "[") || !strings.Contains(stdout, `"code": "SHIP-E0001"`) {
@@ -105,6 +106,11 @@ func TestExplainInFrench(t *testing.T) {
 	if code, stdout, _ := run("explain", "SHIP-W0310"); code != ExitOK ||
 		!strings.Contains(stdout, "Aucun token GitHub") || !strings.Contains(stdout, "Pour corriger : ") {
 		t.Errorf("exit %d\n%s", code, stdout)
+	}
+	if code, stdout, _ := run("explain", "--json", "SHIP-W0310"); code != ExitOK ||
+		!strings.Contains(stdout, `"messages"`) || !strings.Contains(stdout, "Aucun token GitHub") ||
+		!strings.Contains(stdout, `"remedies"`) {
+		t.Errorf("explain --json in French: exit %d\n%s", code, stdout)
 	}
 	if code, _, stderr := run("explain", "SHIP-X9999"); code != ExitUsage || !strings.Contains(stderr, "Code inconnu") {
 		t.Errorf("exit %d, stderr %q", code, stderr)
