@@ -44,6 +44,11 @@ func generated(root string) (map[string][]byte, error) {
 		return nil, err
 	}
 	files[filepath.FromSlash(errorsFile)] = errors
+	faults, err := faultsTable(root)
+	if err != nil {
+		return nil, err
+	}
+	files[filepath.FromSlash(faultsFile)] = faults
 	return files, nil
 }
 

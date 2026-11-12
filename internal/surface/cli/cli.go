@@ -100,6 +100,8 @@ func (r runner) dispatch(args []string) int {
 		return ExitOK
 	case "types":
 		return r.types(args[1:])
+	case "explain":
+		return r.explain(args[1:])
 	case "check":
 		return r.check(args[1:])
 	case "branch":

@@ -25,6 +25,7 @@ var helpArgs = map[string][]string{
 	"gc":                 {"gc", "--help"},
 	"plan":               {"plan", "--help"},
 	"types":              {"types", "--help"},
+	"explain":            {"explain", "--help"},
 	"version":            {"version", "--help"},
 	"check title":        {"check", "title", "--help"},
 	"check branch":       {"check", "branch", "--help"},

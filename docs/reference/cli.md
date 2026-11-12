@@ -426,6 +426,24 @@ Other servers in the file are kept. The command is `ship` from the `PATH`, never
 
 ## Other commands
 
+### `ship explain`
+
+Prints the page of a `SHIP-E` or `SHIP-W` code from the [error reference](errors.md), offline, in the interface language: the note of the code, the exit status ship ends with, the messages it prints (with their `{placeholders}`) and what ship suggests. Without an argument, lists every code with its note, grouped as the reference is. The pages come from the same generated table as the reference (`go run ./tools/gen`); nothing here reaches the network.
+
+```text
+ship explain [<code>]
+```
+
+`--json` prints the page, or the list, as JSON on stdout: a page carries the note, the status, the raw catalogue `keys` for scripts, and the `messages`, `remedies` and `fixes` rendered in the interface language, like the human output; the bare list stays compact (code, note, group). A code nothing is known about — a `SHIP-I` passing check included — is refused with a message on stderr and exit code `64`. The code is read without case, and the `SHIP-` prefix may be left out or doubled: `ship explain e0618` works.
+
+```console
+$ ship explain SHIP-E0618
+SHIP-E0618 — A request to GitHub got no answer (network, proxy, outage).
+Exit code 1.
+
+GitHub ({host}) does not answer: see https://www.githubstatus.com and your proxy (HTTPS_PROXY).
+```
+
 ### `ship version`
 
 Prints the version, the commit and the build date; `--json` prints them with the Go version. `ship --version` does the same. A binary built with `go install` reads them from Go's build information; as it records no commit and no date, such a binary prints the version alone (`ship v0.1.0`).
@@ -577,7 +595,7 @@ These commands and features do not exist yet; see the [roadmap](../../ROADMAP.md
 
 - Automatic atomic commits: split the work into several commits by intent (0.2).
 - `ship watch` and `ship rewind`: checkpoints taken as files change, and a way back to any of them.
-- `ship preview`, `ship explain <code>`, `ship bug`, `ship skill install`, `ship uninstall` and `ship log --agent` (see the [roadmap](../../ROADMAP.md) for 0.2).
+- `ship preview`, `ship bug`, `ship skill install`, `ship uninstall` and `ship log --agent` (see the [roadmap](../../ROADMAP.md) for 0.2).
 - `ship release`: compute the version, write the changelog, create the tag and the GitHub release.
 - `ship login` and `ship logout`: sign in with the GitHub device flow and keep the token in the system keychain.
 - `ship rewind`: go back to any moment of your files, from checkpoints taken while you work (0.2; today, `ship checkpoint restore <id>`).

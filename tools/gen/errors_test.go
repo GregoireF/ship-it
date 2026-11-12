@@ -5,6 +5,8 @@ package main
 
 import (
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/GregoireF/ship-it/internal/i18n"
@@ -29,6 +31,37 @@ func TestEveryFaultCodeHasAMessage(t *testing.T) {
 	for _, code := range codes {
 		if len(keys[code.Name]) == 0 {
 			t.Errorf("%s (%s) is never used with a catalogue key", code.Value, code.Name)
+		}
+	}
+}
+
+// TestEveryFaultCodeHasAGeneratedEntry keeps the generated table of
+// internal/i18n complete: every code constant of fault.go has an entry whose
+// keys render in both English and French, so `ship explain` can show them.
+func TestEveryFaultCodeHasAGeneratedEntry(t *testing.T) {
+	root := filepath.Join("..", "..")
+	codes, err := faultCodes(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys, err := faultKeys(root, i18n.Keys())
+	if err != nil {
+		t.Fatal(err)
+	}
+	table, err := faultsTable(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, code := range codes {
+		if !strings.Contains(string(table), strconv.Quote(code.Value)+":") {
+			t.Errorf("%s has no entry in the generated table", code.Value)
+		}
+		for _, key := range keys[code.Name] {
+			for _, lang := range []i18n.Language{i18n.English, i18n.French} {
+				if got := i18n.Render(lang, key, nil); got == key {
+					t.Errorf("%s: %s is missing from the %s catalogue", code.Value, key, lang)
+				}
+			}
 		}
 	}
 }
