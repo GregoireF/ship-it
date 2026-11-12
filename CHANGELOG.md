@@ -4,6 +4,20 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-13
+
+Fixes for scripts and installs, a readable crash report, and the patched Go standard library. Thanks to our first contributors, @painbaba, @indraoverflow and @Arismonx.
+
+### Fixed
+
+- `ship version` prints the version alone when `go install` built it, instead of `(none, unknown)` (#107, thanks @painbaba).
+- `ship stack sync` and `ship stack publish` accept `--yes` and `-y`, like `ship stack merge`; scripts that passed it stopped with exit code 64 (#108, thanks @indraoverflow; #137, thanks @Arismonx).
+- A panic in one of the lookups `ship status` runs in parallel crashed with "fatal error: unknown caller pc" on Windows; it is now reported with its value and the goroutine's stack, so that the crash can be found (#116, see #104).
+
+### Security
+
+- Built with Go 1.27.4, which fixes GO-2026-6859 in `net/http`. The flaw is an HTTP/1 server crash and ship runs no server, but `govulncheck` finds the affected functions on its call paths, so the release is rebuilt with the fixed standard library (#113).
+
 ## [0.1.1] - 2026-11-07
 
 Fixes found by running ship-it on real repositories, and a safer secret fingerprint.
@@ -84,6 +98,7 @@ First release.
 - Licensed under the Apache License 2.0.
 - English and French interface.
 
-[Unreleased]: https://github.com/GregoireF/ship-it/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/GregoireF/ship-it/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/GregoireF/ship-it/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/GregoireF/ship-it/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/GregoireF/ship-it/releases/tag/v0.1.0

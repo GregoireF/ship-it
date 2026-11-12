@@ -124,7 +124,7 @@ ship stack status [--offline] [--json]
 After a lower layer merged: fetches, removes the merged layers (local and remote branches), rebases the others on the layer below that stays, and retargets the pull requests of a chain.
 
 ```text
-ship stack sync [--dry-run] [--json]
+ship stack sync [--yes] [--dry-run] [--json]
 ```
 
 The working tree must be clean (`SHIP-E1014`). With `ship.stack.rebase` set to `github` (the default), ship follows the rebase GitHub does, which creates signed replacement commits, and leaves alone a layer with commits never pushed (`SHIP-W1010`). With `local`, the layers are rebased here and pushed with a lease, your own signatures kept. `ship undo` puts the branches back; on GitHub it does so only where nobody pushed since (`SHIP-W1015`).
@@ -144,7 +144,7 @@ ship shows what merges and asks for confirmation; `--yes` merges without asking.
 Publishes a stack made with `ship stack --local`. Run it from the top layer.
 
 ```text
-ship stack publish [--issue N] [--draft] [--skip-gates] [--dry-run] [--json]
+ship stack publish [-y|--yes] [--issue N] [--draft] [--skip-gates] [--dry-run] [--json]
 ```
 
 The flags mean what they mean for `ship stack`.
@@ -428,7 +428,7 @@ Other servers in the file are kept. The command is `ship` from the `PATH`, never
 
 ### `ship version`
 
-Prints the version, the commit and the build date; `--json` prints them with the Go version. `ship --version` does the same. A binary built with `go install` reads them from Go's build information.
+Prints the version, the commit and the build date; `--json` prints them with the Go version. `ship --version` does the same. A binary built with `go install` reads them from Go's build information; as it records no commit and no date, such a binary prints the version alone (`ship v0.1.0`).
 
 ### `ship help`
 
