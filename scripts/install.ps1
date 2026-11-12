@@ -109,6 +109,9 @@ function Install-Ship {
     } elseif ($gh) {
         & $gh.Source auth status *> $null
         if ($LASTEXITCODE -eq 0) { $verifier = 'gh' }
+        # `pwsh -Command`/`-File` exit with the last native command's code:
+        # clear this probe's failure so a successful install exits 0.
+        $global:LASTEXITCODE = 0
     }
     if (-not $verifier -and $RequireSignature) {
         throw 'ship install: -RequireSignature: install cosign, or the GitHub CLI (gh) and run gh auth login'
