@@ -93,3 +93,42 @@ func FuzzParsePatch(f *testing.F) {
 		}
 	})
 }
+
+// ParseDiff reads a whole `git diff`, including renames, deletions, binary
+// files and new files: it must never panic, every range must be valid, and
+// Overlaps must list exactly the files that can conflict.
+func FuzzParseDiff(f *testing.F) {
+	f.Add(branchDiff)
+	f.Add("diff --git a/old.go b/new.go\nsimilarity index 90%\nrename from old.go\nrename to new.go\n")
+	f.Add("diff --git a/bin.dat b/bin.dat\nBinary files a/bin.dat and b/bin.dat differ\n")
+	f.Add("diff --git a/new.go b/new.go\nnew file mode 100644\n--- /dev/null\n+++ b/new.go\n@@ -0,0 +1,2 @@\n+a\n+b\n")
+	f.Add("diff --git a/gone.go b/gone.go\ndeleted file mode 100644\n@@ -1 +0,0 @@\n-a\n")
+	f.Fuzz(func(t *testing.T, diff string) {
+		files := ParseDiff(diff)
+		for _, file := range files {
+			for _, r := range file.Ranges {
+				if r.Start < 0 || r.End < r.Start {
+					t.Fatalf("ParseDiff(%q) gave %v for %q", diff, r, file.Path)
+				}
+			}
+		}
+		want := make(map[string]bool)
+		for _, file := range files {
+			if file.Path != "" && (file.Whole || len(file.Ranges) > 0) {
+				want[file.Path] = true
+			}
+		}
+		got := make(map[string]bool)
+		for _, path := range Overlaps(files, files) {
+			if !want[path] {
+				t.Fatalf("Overlaps(%q) listed %q, which changes nothing", diff, path)
+			}
+			got[path] = true
+		}
+		for path := range want {
+			if !got[path] {
+				t.Fatalf("Overlaps(%q) missed %q", diff, path)
+			}
+		}
+	})
+}

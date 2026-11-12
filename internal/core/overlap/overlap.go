@@ -114,6 +114,13 @@ func basePath(header string) string {
 func Overlaps(mine, theirs []File) []string {
 	byPath := make(map[string]File, len(theirs))
 	for _, f := range theirs {
+		// A diff can repeat a path (found by FuzzParseDiff): keep every hunk
+		// instead of letting the last entry hide the earlier ranges.
+		if prev, ok := byPath[f.Path]; ok {
+			prev.Ranges = append(prev.Ranges, f.Ranges...)
+			prev.Whole = prev.Whole || f.Whole
+			f = prev
+		}
 		byPath[f.Path] = f
 	}
 	var paths []string
