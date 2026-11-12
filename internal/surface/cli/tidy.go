@@ -15,6 +15,7 @@ import (
 // tidyCommand runs the cleanup on demand; `ship` also runs it first.
 func (r runner) tidyCommand(args []string) int {
 	fs, asJSON := r.flags("tidy")
+	acceptsYes(fs)
 	dryRun := dryRunFlag(fs)
 	if code, ok := r.parse(fs, args); !ok {
 		return code

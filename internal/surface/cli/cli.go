@@ -666,6 +666,7 @@ func (r runner) statusCommand(args []string) int {
 
 func (r runner) publish(args []string) int {
 	fs, asJSON := r.flags("publish")
+	acceptsYes(fs)
 	issue := fs.Int("issue", 0, "linked issue number (default: from the branch name)")
 	draft := fs.Bool("draft", false, "open the pull request as a draft")
 	skipGates := fs.Bool("skip-gates", false, "push without running lint and tests (said in the pull request)")
