@@ -4,7 +4,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-## [0.1.2] - 2026-11-12
+## [0.1.2] - 2026-11-13
 
 Fixes for scripts and installs, a readable crash report, and the patched Go standard library. Thanks to our first contributors, @painbaba, @indraoverflow and @Arismonx.
 
