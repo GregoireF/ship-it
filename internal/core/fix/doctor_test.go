@@ -41,6 +41,12 @@ func TestParseGitVersion(t *testing.T) {
 	if _, ok := ParseGitVersion("garbage"); ok {
 		t.Error("garbage accepted")
 	}
+	// Negative parts are not a version (found by FuzzParseGitVersion).
+	for _, in := range []string{"0.-1", "-1.2", "2.-3.0"} {
+		if _, ok := ParseGitVersion(in); ok {
+			t.Errorf("ParseGitVersion(%q) accepted a negative part", in)
+		}
+	}
 }
 
 func TestDiagnose(t *testing.T) {
@@ -99,4 +105,21 @@ func TestEveryNonHealthyFindingHasARemedy(t *testing.T) {
 			t.Errorf("%s has no remedy", f.Code)
 		}
 	}
+}
+
+// ParseGitVersion reads `git --version` output, including Windows builds such
+// as "2.52.0.windows.1": it must never panic and never return a negative part.
+func FuzzParseGitVersion(f *testing.F) {
+	for _, seed := range []string{"2.52.0.windows.1", "2.43.0", "2.39.2", "1.2", "0.0.0", "", "x.y.z", "2.43.0.rc0"} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, s string) {
+		v, ok := ParseGitVersion(s)
+		if !ok {
+			return
+		}
+		if v.Major < 0 || v.Minor < 0 || v.Patch < 0 {
+			t.Fatalf("ParseGitVersion(%q) = %+v, want non-negative parts", s, v)
+		}
+	})
 }
