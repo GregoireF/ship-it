@@ -1,0 +1,23 @@
+⛵ ship · main → feat/add-vat-rate
+
+› Commits     (•) 2 commits  ( ) un seul commit  s : basculer
+  › 1  ♻️ refactor: rename total to sum
+       ✓ 32/72 · renomme total en sum
+       cart.go:3  func total() int { → func sum() int {
+       cart.go:8  return total() → return sum()
+    2  ✨ feat: add vat
+       ✓ 15/72 · ajoute des déclarations, avec leurs tests
+       vat.go (fichier entier)
+       vat_test.go (fichier entier)
+
+  Branche     feat/add-vat-rate
+              ✓ valide
+  Pourquoi ?  facultatif
+  Testé ?     facultatif
+
+  Fichiers    ▾ 3/3 sélectionnés
+              [x] cart.go
+              [x] vat.go
+              [x] vat_test.go
+
+Entrée édite/livre · K/J déplace · 1-9 vers · m fusionne · s un seul · ? aide

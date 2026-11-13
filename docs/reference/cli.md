@@ -609,21 +609,52 @@ Ship it? [Y/n]
 
 ### One commit per intent
 
-When the work does several things, the line-by-line review proposes one commit for each, read from the diff: a rename made in several places, formatting only, a new feature with its tests, the rest. A file can be split between commits, hunk by hunk; a file added, deleted, renamed or binary goes whole into one. `n` keeps one commit.
+When the work does several things, the review proposes one commit for each, read from the diff: a rename made in several places, formatting only, a new feature with its tests, the rest. A file can be split between commits, hunk by hunk; a file added, deleted, renamed or binary goes whole into one.
+
+On the review screen, a Commits section takes the place of the title: each commit with its title, checked as you type, what it does, and its changes.
+
+```text
+› Commits  (•) 2 commits  ( ) one commit  s: switch
+  › 1  ♻️ refactor: rename total to sum
+       ✓ 32/72 · renames total to sum
+       cart.go:3  func total() int { → func sum() int {
+       cart.go:8  return total() → return sum()
+    2  ✨ feat: add vat
+       ✓ 15/72 · adds declarations, with their tests
+       vat.go (whole file)
+       vat_test.go (whole file)
+```
+
+| Key | Effect |
+|---|---|
+| ↑ ↓ (or k j) | Move among the commits and their changes. |
+| Enter | On a commit, edit its title (Enter keeps it). On a change, ship. |
+| Shift+↑, Shift+↓ (or K, J) | On a commit, move it up or down; on a change, move it to the commit above or below. |
+| `1` to `9` | On a change, move it to that commit. |
+| `m` | On a commit, merge the commit below into it. |
+| `s` | Switch between these commits and one commit. |
+
+A commit left without changes goes away; merged back into one, the work is one ordinary commit.
+
+The line-by-line review numbers the changes and takes one command per line, then asks for the title of each commit:
 
 ```text
 This work does 2 things; ship can commit each one apart:
   1. ♻️ refactor: rename total to sum
-     renames total to sum: cart.go
+     renames total to sum
+     1.1 cart.go:3  func total() int { → func sum() int {
+     1.2 cart.go:8  return total() → return sum()
   2. ✨ feat: add vat
-     adds declarations, with their tests: vat.go, vat_test.go
+     adds declarations, with their tests
+     2.1 vat.go (whole file)
+     2.2 vat_test.go (whole file)
 Make 2 commits? (n: one commit) [Y/n]
+Change? (1.2 3: move change 1.2 to commit 3 · up 2, down 2: move commit 2 · merge 1 2: put commit 2 into 1 · Enter: done)
 Commit 1 title [♻️ refactor: rename total to sum]:
 Commit 2 title [✨ feat: add vat]:
 ```
 
-Then come the branch, why and how it was tested, which go into the last commit. The commits are made from the index, the working tree is never touched, and the last one leaves the files exactly as they are. `ship undo` takes them all back. If the work changes between the review and the delivery, nothing is committed (`SHIP-E0202`). With `--yes`, or through `ship mcp`, the work stays one commit. The review screen does not offer the split yet.
-
+Then come the branch, why and how it was tested, which go into the last commit. The commits are made from the index, the working tree is never touched, and the last one leaves the files exactly as they are. `ship undo` takes them all back. If the work changes between the review and the delivery, nothing is committed (`SHIP-E0202`). Selecting part of the files, `--yes`, or `ship mcp` keep one commit.
 ### The stack review screen
 
 `ship stack` shows its layers bottom first, each with its title, branch and files, and checks titles and branches as you type.

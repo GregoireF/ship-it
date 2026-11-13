@@ -365,9 +365,8 @@ func (r runner) ship(args []string) int {
 	}
 	// A dry run asks nothing: it shows the plan as proposed.
 	mode := r.reviewModeFor(*yes || *dryRun)
-	// Several commits only when a human reviews them (#34); the review
-	// screen learns them in a later version.
-	atomic := mode == reviewPlain
+	// Several commits only when a human reviews them (#34, #36).
+	atomic := mode == reviewPlain || mode == reviewScreen
 	view, err := app.ProposePlan(r.ctx, r.deps, app.PlanRequest{Issue: *issue, Agent: *agent, Only: only, Atomic: atomic})
 	if err != nil {
 		return r.fail(err)
