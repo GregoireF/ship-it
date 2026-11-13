@@ -34,6 +34,10 @@ type reviewOutcome struct {
 	action                     reviewAction
 	title, branch, why, tested string
 	only                       []string
+	// commits split the delivery by intent (#34), hunksDigest the work
+	// they split; empty for one commit.
+	commits     []app.CommitSpec
+	hunksDigest string
 }
 
 type reviewField int

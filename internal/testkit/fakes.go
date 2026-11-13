@@ -22,8 +22,12 @@ import (
 // FakeGit is an in-memory ports.Git. Zero values describe a missing repository
 // configuration; set only what a test needs.
 type FakeGit struct {
-	WorkingTree      ports.WorkingTreeStatus
-	DiffText         string
+	WorkingTree ports.WorkingTreeStatus
+	DiffText    string
+	// ZeroDiffText is the -U0 diff (ZeroContextDiff); Staged, when set,
+	// receives what StageContent stages.
+	ZeroDiffText     string
+	Staged           *map[string]string
 	WorkingFiles     map[string]string
 	ConfigValues     map[string]string
 	MatchingValues   map[string]string
@@ -174,6 +178,24 @@ func (f FakeGit) SwitchToNewBranch(_ context.Context, name string) error {
 // StageAll implements ports.Git.
 func (f FakeGit) StageAll(context.Context) error {
 	f.record("stage")
+	return nil
+}
+
+// ZeroContextDiff implements ports.Git with ZeroDiffText.
+func (f FakeGit) ZeroContextDiff(context.Context) (string, error) { return f.ZeroDiffText, nil }
+
+// StagePaths implements ports.Git.
+func (f FakeGit) StagePaths(_ context.Context, paths []string) error {
+	f.record("stage " + strings.Join(paths, " "))
+	return nil
+}
+
+// StageContent implements ports.Git; Staged records the content.
+func (f FakeGit) StageContent(_ context.Context, path string, content []byte) error {
+	f.record("stage-content " + path)
+	if f.Staged != nil {
+		(*f.Staged)[path] = string(content)
+	}
 	return nil
 }
 

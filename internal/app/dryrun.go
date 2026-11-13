@@ -474,6 +474,14 @@ func (d *dryGit) SwitchToNewBranch(ctx context.Context, name string) error {
 // StageAll is part of the commit that follows: no step of its own.
 func (d *dryGit) StageAll(context.Context) error { return nil }
 
+func (d *dryGit) ZeroContextDiff(ctx context.Context) (string, error) {
+	return d.git.ZeroContextDiff(ctx)
+}
+
+// StagePaths and StageContent are part of the commit that follows.
+func (d *dryGit) StagePaths(context.Context, []string) error         { return nil }
+func (d *dryGit) StageContent(context.Context, string, []byte) error { return nil }
+
 func (d *dryGit) commit(ctx context.Context, message string, paths []string) (string, error) {
 	d.headNow(ctx)
 	// The files the commit would hold, for the size of the pull request.

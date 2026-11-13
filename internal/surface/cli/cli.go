@@ -363,12 +363,15 @@ func (r runner) ship(args []string) int {
 			tidyWarning = err
 		}
 	}
-	view, err := app.ProposePlan(r.ctx, r.deps, app.PlanRequest{Issue: *issue, Agent: *agent, Only: only})
+	// A dry run asks nothing: it shows the plan as proposed.
+	mode := r.reviewModeFor(*yes || *dryRun)
+	// Several commits only when a human reviews them (#34); the review
+	// screen learns them in a later version.
+	atomic := mode == reviewPlain
+	view, err := app.ProposePlan(r.ctx, r.deps, app.PlanRequest{Issue: *issue, Agent: *agent, Only: only, Atomic: atomic})
 	if err != nil {
 		return r.fail(err)
 	}
-	// A dry run asks nothing: it shows the plan as proposed.
-	mode := r.reviewModeFor(*yes || *dryRun)
 	if mode == reviewConfirm && len(view.TypeChoices) > 0 {
 		mode = reviewPlain // a yes/no question cannot pick the type
 	}
@@ -397,7 +400,7 @@ func (r runner) ship(args []string) int {
 	cfg := reviewConfig{
 		lang: r.lang, plan: view, only: only, why: *why, tested: *tested,
 		replan: func(only []string) (app.PlanView, error) {
-			return app.ProposePlan(r.ctx, r.deps, app.PlanRequest{Issue: *issue, Agent: *agent, Only: only})
+			return app.ProposePlan(r.ctx, r.deps, app.PlanRequest{Issue: *issue, Agent: *agent, Only: only, Atomic: atomic})
 		},
 	}
 	if mode == reviewScreen || mode == reviewPlain {
@@ -439,6 +442,7 @@ func (r runner) ship(args []string) int {
 		if mode != reviewConfirm {
 			request.Title, request.Branch, request.Only = outcome.title, outcome.branch, outcome.only
 			request.Why, request.Tested = outcome.why, outcome.tested
+			request.Commits, request.HunksDigest = outcome.commits, outcome.hunksDigest
 		}
 		*local = *local || outcome.action == reviewLocal
 	}
@@ -455,7 +459,15 @@ func (r runner) ship(args []string) int {
 		if result.CreatedBranch {
 			key = "cli.ship.committed_new_branch"
 		}
-		r.note(i18n.Render(r.lang, key, map[string]string{"commit": short, "branch": result.Branch}))
+		if len(result.Commits) > 1 {
+			key = "cli.ship.committed_several"
+		}
+		r.note(i18n.Render(r.lang, key, map[string]string{"commit": short, "branch": result.Branch, "count": strconv.Itoa(len(result.Commits))}))
+		if len(result.Commits) > 1 {
+			for _, c := range result.Commits {
+				r.note("  " + shortCommit(c.Commit) + " " + c.Title)
+			}
+		}
 	}
 	shipped := shipResult{Delivery: result}
 	if *dryRun && !*local {

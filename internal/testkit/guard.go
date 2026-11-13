@@ -35,6 +35,14 @@ func (g guardGit) SwitchToNewBranch(context.Context, string) error {
 	return nil
 }
 func (g guardGit) StageAll(context.Context) error { wrote(g.t, "StageAll"); return nil }
+func (g guardGit) StagePaths(context.Context, []string) error {
+	wrote(g.t, "StagePaths")
+	return nil
+}
+func (g guardGit) StageContent(context.Context, string, []byte) error {
+	wrote(g.t, "StageContent")
+	return nil
+}
 func (g guardGit) Commit(context.Context, string, ports.CommitOptions) (string, error) {
 	wrote(g.t, "Commit")
 	return "", nil
