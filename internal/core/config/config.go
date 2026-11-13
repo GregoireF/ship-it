@@ -117,7 +117,23 @@ type ShipSettings struct {
 	Tidy        TidySettings        `json:"tidy"`
 	Logs        LogsSettings        `json:"logs"`
 	Stack       StackSettings       `json:"stack"`
+	Watch       WatchSettings       `json:"watch"`
 }
+
+// WatchSettings drive ship watch and how ship gc keeps its checkpoints
+// (#38).
+type WatchSettings struct {
+	PauseSeconds int `json:"pauseSeconds" minimum:"1" doc:"Seconds without any change in the files after which ship watch takes a checkpoint."`
+	KeepHours    int `json:"keepHours" minimum:"1" doc:"Hours ship gc keeps the checkpoints of ship watch; they do not count in the 20 most recent checkpoints of operations."`
+	KeepMax      int `json:"keepMax" minimum:"1" doc:"Most checkpoints of ship watch that ship gc keeps, the newest first."`
+}
+
+// Default watch settings.
+const (
+	DefaultWatchPauseSeconds = 10
+	DefaultWatchKeepHours    = 48
+	DefaultWatchKeepMax      = 200
+)
 
 // StackSettings drive ship stack (ADR-0006, revision of 2026-11-02).
 type StackSettings struct {
@@ -364,6 +380,7 @@ func Defaults() Settings {
 			Gates:   GatesSettings{Enabled: true, AllowSkip: true},
 			Tidy:    TidySettings{Auto: true, DeleteMerged: true},
 			Logs:    LogsSettings{KeepRuns: DefaultKeepRuns, MaxBytes: DefaultMaxBytes, BlackBoxBytes: DefaultBlackBoxBytes},
+			Watch:   WatchSettings{PauseSeconds: DefaultWatchPauseSeconds, KeepHours: DefaultWatchKeepHours, KeepMax: DefaultWatchKeepMax},
 			Stack:   StackSettings{Rebase: StackRebaseGitHub, MaxLayers: 5},
 		},
 		GitHub: GitHubSettings{

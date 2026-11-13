@@ -25,6 +25,7 @@ var helpArgs = map[string][]string{
 	"uninstall":          {"uninstall", "--help"},
 	"skill install":      {"skill", "install", "--help"},
 	"rewind":             {"rewind", "--help"},
+	"watch":              {"watch", "--help"},
 	"bug":                {"bug", "--help"},
 	"undo":               {"undo", "--help"},
 	"gc":                 {"gc", "--help"},

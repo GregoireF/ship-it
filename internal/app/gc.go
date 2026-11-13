@@ -11,6 +11,7 @@ import (
 	"github.com/GregoireF/ship-it/internal/core/config"
 	"github.com/GregoireF/ship-it/internal/core/oplog"
 	"github.com/GregoireF/ship-it/internal/core/retention"
+	"github.com/GregoireF/ship-it/internal/core/watch"
 )
 
 // garbageScanDepth bounds how many checkpoints one collection examines.
@@ -117,10 +118,15 @@ func collectGarbage(ctx context.Context, ws Workspace, req GarbageRequest) (Garb
 	items := make([]retention.Item, len(checkpoints))
 	byID := make(map[string]CheckpointView, len(checkpoints))
 	for i, c := range checkpoints {
-		items[i] = retention.Item{ID: c.ID, CreatedAt: c.CreatedAt}
+		items[i] = retention.Item{ID: c.ID, CreatedAt: c.CreatedAt, Watch: c.Label == watch.Label}
 		byID[c.ID] = viewOf(c)
 	}
-	expired := retention.Expired(items, req.Now, retention.DefaultPolicy, protected)
+	policy := retention.DefaultPolicy
+	if eff, err := LoadSettings(ctx, ws); err == nil {
+		w := eff.Settings.Ship.Watch
+		policy.KeepWatchFor, policy.KeepWatchMax = time.Duration(w.KeepHours)*time.Hour, w.KeepMax
+	}
+	expired := retention.Expired(items, req.Now, policy, protected)
 
 	report := GarbageReport{Kept: len(checkpoints) - len(expired), DryRun: req.DryRun, Removed: []CheckpointView{}}
 	for _, id := range expired {

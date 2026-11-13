@@ -146,6 +146,10 @@ type Git interface {
 	// since a date git understands ("6 months ago"), newest first, merges
 	// excluded.
 	RecentAuthors(ctx context.Context, rev, since string, paths []string) ([]CommitAuthor, error)
+	// WorkingFingerprint is a short string that changes whenever a file of
+	// the working tree that is not ignored changes, is created or deleted
+	// (ship watch, #38). It reads metadata only, never contents.
+	WorkingFingerprint(ctx context.Context) (string, error)
 	// CommitPatches returns the patch of every commit (a merge: its conflict
 	// resolution) reachable
 	// from HEAD and from none of exclude (all of HEAD's history when exclude

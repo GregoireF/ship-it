@@ -5,6 +5,7 @@ package retention
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -30,6 +31,27 @@ func TestExpired(t *testing.T) {
 	want := []string{"today-1", "d1-early", "d40"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Expired = %v, want %v", got, want)
+	}
+}
+
+// TestWatchCheckpointsHaveTheirOwnLimit: #38. A long watch never pushes
+// the checkpoints of operations out; its own are kept 48 hours, 200 at most.
+func TestWatchCheckpointsHaveTheirOwnLimit(t *testing.T) {
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	policy := Policy{KeepLatest: 2, KeepWatchFor: 48 * time.Hour, KeepWatchMax: 3}
+	items := []Item{
+		{ID: "w1", CreatedAt: now.Add(-1 * time.Minute), Watch: true},
+		{ID: "w2", CreatedAt: now.Add(-2 * time.Minute), Watch: true},
+		{ID: "op1", CreatedAt: now.Add(-3 * time.Minute)},
+		{ID: "w3", CreatedAt: now.Add(-4 * time.Minute), Watch: true},
+		{ID: "w4", CreatedAt: now.Add(-5 * time.Minute), Watch: true}, // beyond KeepWatchMax
+		{ID: "op2", CreatedAt: now.Add(-6 * time.Minute)},             // still among the 2 operations
+		{ID: "w5", CreatedAt: now.Add(-72 * time.Hour), Watch: true},  // older than 48 hours
+		{ID: "op3", CreatedAt: now.Add(-73 * time.Hour)},              // beyond KeepLatest, no daily window
+	}
+	got := Expired(items, now, policy, nil)
+	if strings.Join(got, ",") != "w4,w5,op3" {
+		t.Errorf("Expired = %v, want [w4 w5 op3]", got)
 	}
 }
 

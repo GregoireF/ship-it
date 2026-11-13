@@ -47,6 +47,8 @@ type FakeGit struct {
 	DiffStats []ports.FileStat
 	// Authors are what RecentAuthors answers.
 	Authors []ports.CommitAuthor
+	// Fingerprints are what WorkingFingerprint answers, one per call.
+	Fingerprints *[]string
 	// PushErr fails PushCommit by branch.
 	PushErr map[string]error
 	// LayerStats answer DiffStatBetween by head ("refs/heads/feat/a").
@@ -279,6 +281,19 @@ func (f FakeGit) CommitPatches(context.Context, []string) (string, error) { retu
 
 // DiffSince implements ports.Git with BranchDiff.
 func (f FakeGit) DiffSince(context.Context, string) (string, error) { return f.BranchDiff, nil }
+
+// WorkingFingerprint implements ports.Git: the next of Fingerprints, then
+// the last one again.
+func (f FakeGit) WorkingFingerprint(context.Context) (string, error) {
+	if f.Fingerprints == nil || len(*f.Fingerprints) == 0 {
+		return "", nil
+	}
+	next := (*f.Fingerprints)[0]
+	if len(*f.Fingerprints) > 1 {
+		*f.Fingerprints = (*f.Fingerprints)[1:]
+	}
+	return next, nil
+}
 
 // RecentAuthors implements ports.Git with Authors.
 func (f FakeGit) RecentAuthors(context.Context, string, string, []string) ([]ports.CommitAuthor, error) {

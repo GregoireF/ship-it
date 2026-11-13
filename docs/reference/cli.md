@@ -206,6 +206,16 @@ ship checkpoint restore <id> [--dry-run] [--json]
 
 `--label` names the snapshot. `list` shows the 20 most recent. `restore` saves a safety checkpoint first, so a restore can be undone with another restore.
 
+### `ship watch`
+
+Takes a checkpoint after each pause in your edits, until Ctrl+C: nothing while files keep changing, nothing while nothing changes. It runs in a terminal, without a daemon.
+
+```text
+ship watch
+```
+
+Every 2 seconds it reads `git status` and the size and time of the listed files (ignored files aside, never their contents); once nothing has moved for `ship.watch.pauseSeconds` (10) after a change, it takes a checkpoint labelled `watch`. `ship rewind` goes back to one. These checkpoints do not count in the 20 most recent that `ship gc` keeps for operations: it keeps those of the last `ship.watch.keepHours` (48), `ship.watch.keepMax` (200) at most, and `ship gc --dry-run` shows what it would remove.
+
 ### `ship rewind`
 
 Goes back to a checkpoint without knowing its id: it lists the most recent ones, newest first, each with its label, time, branch and the files changed since the one before (`+` added, `-` deleted), then asks which one.
@@ -649,7 +659,6 @@ On Windows, a standard user can create a folder under `%ProgramData%`. Until an 
 These commands and features do not exist yet; see the [roadmap](../../ROADMAP.md).
 
 - Automatic atomic commits: split the work into several commits by intent (0.2).
-- `ship watch`: checkpoints taken as files change, which `ship rewind` can go back to.
 - `ship explain <code>` and `ship skill install` (see the [roadmap](../../ROADMAP.md) for 0.2).
 - `ship release`: compute the version, write the changelog, create the tag and the GitHub release.
 - `ship login` and `ship logout`: sign in with the GitHub device flow and keep the token in the system keychain.
