@@ -37,6 +37,8 @@ type Workspace struct {
 	// keeps its safeguards whatever the configuration says
 	// (docs/design/configurability.md): see scanOptions.
 	Agent bool
+	// AgentName names that agent (WithAgent): ship.agents gives its rules.
+	AgentName string
 	// RunLogs are the journals of past runs, pruned by `ship gc`; nil skips.
 	RunLogs ports.RunLogs
 	// Footprint is what ship uninstall finds and removes; nil refuses it.

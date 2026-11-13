@@ -138,6 +138,9 @@ func DeliverLocally(ctx context.Context, ws Workspace, req DeliveryRequest) (res
 	if len(found) > 0 {
 		return DeliveryResult{}, &SecretsFoundError{Findings: found}
 	}
+	if err := checkAgentPaths(ctx, ws, diffPaths(diffs)); err != nil {
+		return DeliveryResult{}, err
+	}
 	// The message follows the repository's gitmoji habit (ship.commits.gitmoji).
 	eff, err := LoadSettingsFor(ctx, ws, diffPaths(diffs))
 	if err != nil {

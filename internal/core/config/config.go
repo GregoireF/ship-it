@@ -118,6 +118,7 @@ type ShipSettings struct {
 	Logs        LogsSettings        `json:"logs"`
 	Stack       StackSettings       `json:"stack"`
 	Watch       WatchSettings       `json:"watch"`
+	Agents      Agents              `json:"agents" doc:"Rules per coding agent working through ship mcp, by the name ship mcp install --client gives (claude, vscode, cursor, codex) or the agent's own, and \"*\" for every agent: tools, the ship_* tools it may call (all when empty); protectedPaths, glob patterns of files it may not deliver. An agent's tools replace those of \"*\"; protected paths add up."`
 }
 
 // WatchSettings drive ship watch and how ship gc keeps its checkpoints
@@ -381,6 +382,7 @@ func Defaults() Settings {
 			Tidy:    TidySettings{Auto: true, DeleteMerged: true},
 			Logs:    LogsSettings{KeepRuns: DefaultKeepRuns, MaxBytes: DefaultMaxBytes, BlackBoxBytes: DefaultBlackBoxBytes},
 			Watch:   WatchSettings{PauseSeconds: DefaultWatchPauseSeconds, KeepHours: DefaultWatchKeepHours, KeepMax: DefaultWatchKeepMax},
+			Agents:  Agents{},
 			Stack:   StackSettings{Rebase: StackRebaseGitHub, MaxLayers: 5},
 		},
 		GitHub: GitHubSettings{

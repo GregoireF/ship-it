@@ -95,6 +95,35 @@
         "ship": {
           "additionalProperties": false,
           "properties": {
+            "agents": {
+              "additionalProperties": {
+                "additionalProperties": false,
+                "properties": {
+                  "protectedPaths": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "tools": {
+                    "items": {
+                      "pattern": "^ship_[a-z_]+$",
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  }
+                },
+                "type": "object"
+              },
+              "default": {},
+              "description": "Rules per coding agent working through ship mcp, by the name ship mcp install --client gives (claude, vscode, cursor, codex) or the agent's own, and \"*\" for every agent: tools, the ship_* tools it may call (all when empty); protectedPaths, glob patterns of files it may not deliver. An agent's tools replace those of \"*\"; protected paths add up.",
+              "propertyNames": {
+                "pattern": "^(\\*|[a-z0-9][a-z0-9._-]*)$"
+              },
+              "type": "object"
+            },
             "branches": {
               "additionalProperties": false,
               "properties": {

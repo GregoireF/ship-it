@@ -166,6 +166,7 @@ func TestFlatten(t *testing.T) {
 		{"ship.watch.pauseSeconds", "10"},
 		{"ship.watch.keepHours", "48"},
 		{"ship.watch.keepMax", "200"},
+		{"ship.agents", "{}"},
 		{"github.managedBy", `""`},
 		{"github.labels.taxonomy", `"ship-it"`},
 		{"github.labels.areas", "[]"},

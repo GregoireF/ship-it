@@ -302,7 +302,15 @@ func (s *Server) dispatch(ctx context.Context, req request, modern bool) (map[st
 	case "ping":
 		return map[string]any{}, nil
 	case "tools/list":
-		result := map[string]any{"tools": toolDefinitions()}
+		// Only the tools ship.agents lets this agent call (#48).
+		rules := app.AgentRules(ctx, s.workspace(false))
+		var defs []map[string]any
+		for _, d := range toolDefinitions() {
+			if rules.Allows(d["name"].(string)) {
+				defs = append(defs, d)
+			}
+		}
+		result := map[string]any{"tools": defs}
 		if modern {
 			result["ttlMs"], result["cacheScope"] = toolListTTL, "public"
 		}
