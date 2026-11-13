@@ -87,7 +87,7 @@ var tools = []tool{
 	},
 	{
 		name: "ship_plan", title: "Plan a delivery",
-		description: "What ship_deliver would do with the work in progress: conventional title, branch, files, reasons, secrets found, and a split suggestion when it is large. Changes nothing.",
+		description: "What ship_deliver would do with the work in progress: conventional title, branch, files, reasons, secrets found, and a split suggestion when it is large. Also the repository's conventions (types, scopes, limits, formats), to propose your own title and branch to ship_deliver. Changes nothing.",
 		input:       object(map[string]any{"only": onlyProperty, "issue": issueProperty}),
 		output:      app.PlanView{}, readOnly: true,
 		run: func(ctx context.Context, s *Server, raw json.RawMessage) (any, error) {
@@ -98,16 +98,21 @@ var tools = []tool{
 			if err := decode(raw, &args); err != nil {
 				return nil, err
 			}
-			view, err := app.ProposePlan(ctx, s.workspace(false), app.PlanRequest{Only: args.Only, Issue: args.Issue})
+			view, err := app.ProposePlan(ctx, s.workspace(false), app.PlanRequest{Only: args.Only, Issue: args.Issue, Conventions: true})
 			for i, r := range view.Reasons {
 				view.Reasons[i].Text = i18n.Render(i18n.English, r.Key, r.Params)
+			}
+			if view.Conventions != nil {
+				for i, t := range view.Conventions.Types {
+					view.Conventions.Types[i].Description = i18n.Render(i18n.English, t.DescriptionKey, nil)
+				}
 			}
 			return view, err
 		},
 	},
 	{
 		name: "ship_deliver", title: "Commit the work locally",
-		description: "Checkpoint, dedicated branch when on the default branch, then one conventional commit. Optional title (\"feat(scope): subject\", ≤ 50-character subject) and branch (\"feat/short-name\") are validated; without them the deterministic plan decides. Refuses changes containing secrets. Nothing is pushed: see ship_publish.",
+		description: "Checkpoint, dedicated branch when on the default branch, then one conventional commit. Optional title (\"feat(scope): subject\", ≤ 50-character subject) and branch (\"feat/short-name\") are validated against the conventions ship_plan lists: a refusal names every rule they break and proposes a title and branch that pass. Without them the deterministic plan decides. Refuses changes containing secrets. Nothing is pushed: see ship_publish.",
 		input: object(map[string]any{
 			"title":  map[string]any{"type": "string", "description": "Conventional commit header, e.g. \"fix(api): handle empty cart\"."},
 			"branch": map[string]any{"type": "string", "description": "Branch to create when on the default branch, e.g. \"fix/empty-cart\"."},
@@ -254,6 +259,13 @@ func deliver(ctx context.Context, s *Server, raw json.RawMessage) (any, error) {
 	// AI-assisted mention.
 	if (args.Title != "" || args.Branch != "") && !s.Attended {
 		req.AIAssistant = hostAgent
+		// Every rule the proposal breaks, with one that passes them: the
+		// agent rewrites once instead of once per rule.
+		if err := app.CheckProposal(ctx, ws, app.Proposal{
+			Title: args.Title, Branch: args.Branch, Only: args.Only, Issue: args.Issue, Plan: plan,
+		}); err != nil {
+			return nil, err
+		}
 	}
 	if args.Title != "" {
 		req.Title = args.Title
@@ -361,6 +373,20 @@ func (s *Server) explain(err error) string {
 	}
 	if results, ok := app.GatesIn(err); ok {
 		text += "\n" + results[len(results)-1].Output
+	}
+	if refused, ok := app.ProposalIn(err); ok {
+		for _, other := range refused.Faults[1:] {
+			text += fmt.Sprintf("\n- %s %s", other.Code, i18n.Render(i18n.English, other.Key, other.Params))
+		}
+		key := "agents.proposal.plan_title"
+		if refused.Kept {
+			key = "agents.proposal.corrected_title"
+		}
+		text += "\n" + i18n.Render(i18n.English, key, map[string]string{"title": refused.Title})
+		if refused.Branch != "" {
+			text += "\n" + i18n.Render(i18n.English, "agents.proposal.branch", map[string]string{"branch": refused.Branch})
+		}
+		text += "\n" + i18n.Render(i18n.English, "agents.proposal.retry", nil)
 	}
 	return text
 }

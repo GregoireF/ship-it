@@ -92,6 +92,24 @@ export type ShipLogResult = {
 
 export type ShipPlanResult = {
   branch: string;
+  conventions?: {
+    branch_format: string;
+    branch_max_words: number;
+    commitlint?: boolean;
+    header_max: number;
+    scope_required?: boolean;
+    scopes?: string[] | null;
+    subject_max: number;
+    title_format: string;
+    types: {
+      branch_prefix: string;
+      description?: string;
+      description_key: string;
+      gitmoji: string;
+      label?: string;
+      type: string;
+    }[] | null;
+  } | null;
   creates_branch: boolean;
   current_branch?: string;
   files: string[] | null;

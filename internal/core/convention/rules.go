@@ -66,6 +66,9 @@ func (r Rules) Width() int { return orDefault(r.BodyWidth, DefaultBodyWidth) }
 func (r Rules) branchMaxWords() int  { return orDefault(r.BranchMaxWords, DefaultBranchMaxWords) }
 func (r Rules) branchMaxLength() int { return orDefault(r.BranchMaxLength, DefaultBranchMaxLength) }
 
+// BranchWordsMax is the most words of a branch description.
+func (r Rules) BranchWordsMax() int { return r.branchMaxWords() }
+
 func orDefault(n, fallback int) int {
 	if n <= 0 {
 		return fallback
