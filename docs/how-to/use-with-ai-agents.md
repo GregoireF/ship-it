@@ -132,6 +132,10 @@ Run `ship mcp` as a stdio MCP server, from the repository you work in. It speaks
 
 They apply to agents working alone (`ship mcp`); through the VS Code extension (`ship mcp --attended`) a human reviews each step. An organisation policy can enforce `ship.agents` like any other setting.
 
+## What each agent did
+
+Every operation made through `ship mcp` records the agent's name. `ship log --agent` keeps only what agents did, and `ship log --agent claude` what one agent did; the agent sees the same journal through `ship_log`. See [`ship log`](../reference/cli.md#ship-log).
+
 ## The tools
 
 | Tool | Arguments | What it returns |
