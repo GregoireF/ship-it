@@ -9,7 +9,7 @@
   "features": {
     // Node.js 22, the version of the extension CI job (.github/workflows/ci.yml).
     // The base image already has nvm: the feature installs 22 and makes it the default.
-    "ghcr.io/devcontainers/features/node:2.1.1": {
+    "ghcr.io/devcontainers/features/node:2.1.2": {
       "version": "22"
     }
   },
