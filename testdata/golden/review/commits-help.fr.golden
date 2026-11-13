@@ -1,0 +1,24 @@
+⛵ ship · main → feat/add-vat-rate
+
+  Touches
+    Entrée           livrer (dans un champ texte : champ suivant)
+    Ctrl+Entrée, F2  livrer depuis n'importe où, champ texte compris
+    Ctrl+L           commit local seulement : ni push ni pull request
+    Tab, Maj+Tab     champ suivant ou précédent
+    ↑ ↓              se déplacer dans les fichiers et les parties
+    Espace           cocher ou décocher un fichier ; livrer une seule partie
+    ← →              replier ou déplier les fichiers
+    ?                cette aide (hors d'un champ texte)
+    Échap, Ctrl+C    annuler : rien ne change
+
+  Dans les commits
+    ↑ ↓              se déplacer entre les commits et leurs changements
+    Entrée           sur un commit : éditer son titre (Entrée le garde)
+    Maj+↑ ↓, K J     sur un commit : le monter ou le descendre d'une place
+                     sur un changement : l'envoyer au commit voisin
+    1 à 9            sur un changement : l'envoyer à ce commit
+    m                sur un commit : y fusionner le commit du dessous
+    s                basculer entre ces commits et un seul commit
+  Un commit sans changement disparaît.
+
+  N'importe quelle touche ferme cette aide.

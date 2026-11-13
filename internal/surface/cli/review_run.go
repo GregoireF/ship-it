@@ -141,9 +141,10 @@ func (r runner) plainReview(cfg reviewConfig) reviewOutcome {
 	cancel := reviewOutcome{action: reviewCancel}
 	t := func(key string, params map[string]string) string { return i18n.Render(r.lang, key, params) }
 	if len(cfg.plan.Commits) > 1 {
-		r.printCommits(cfg.plan.Commits)
-		if r.confirm(t("cli.prompt.split", map[string]string{"count": strconv.Itoa(len(cfg.plan.Commits))})) {
-			return r.plainSplitReview(cfg)
+		drafts := draftsOf(cfg.plan.Commits)
+		r.printDrafts(drafts)
+		if r.confirm(t("cli.prompt.split", map[string]string{"count": strconv.Itoa(len(drafts))})) {
+			return r.plainSplitReview(cfg, drafts)
 		}
 	}
 	proposed := cfg.plan.Title
@@ -189,33 +190,47 @@ func (r runner) plainReview(cfg reviewConfig) reviewOutcome {
 	return reviewOutcome{action: reviewShip, title: title, branch: branch, why: why, tested: tested, only: cfg.only}
 }
 
-// printCommits lists the commits of a split by intent, with what each does
-// and the files it touches.
-func (r runner) printCommits(commits []app.CommitView) {
-	r.status(i18n.Render(r.lang, "cli.split.header", map[string]string{"count": strconv.Itoa(len(commits))}))
-	for i, c := range commits {
-		var files []string
-		for _, h := range c.Hunks {
-			if !slices.Contains(files, h.Path) {
-				files = append(files, h.Path)
-			}
-		}
+// printDrafts lists the commits of a split by intent, with what each does
+// and its changes numbered for the plain review (1.1, 1.2, 2.1…).
+func (r runner) printDrafts(drafts commitDrafts) {
+	r.status(i18n.Render(r.lang, "cli.split.header", map[string]string{"count": strconv.Itoa(len(drafts))}))
+	for i, c := range drafts {
 		r.status(i18n.Render(r.lang, "cli.split.commit", map[string]string{
-			"position": strconv.Itoa(i + 1), "title": c.Title,
-			"reason": i18n.Render(r.lang, c.Reason.Key, c.Reason.Params), "files": strings.Join(files, ", "),
+			"position": strconv.Itoa(i + 1), "title": c.title, "reason": i18n.Render(r.lang, c.reason.Key, c.reason.Params),
 		}))
+		for j, h := range c.hunks {
+			r.status("     " + strconv.Itoa(i+1) + "." + strconv.Itoa(j+1) + " " + hunkLabel(r.lang, h))
+		}
 	}
 }
 
-// plainSplitReview asks for the title of each commit of a split by intent,
-// then the branch, why and how it was tested (they go into the last
-// commit), then whether to ship: one line each, as plainReview does.
-func (r runner) plainSplitReview(cfg reviewConfig) reviewOutcome {
+// plainSplitReview lets the human move changes between commits, reorder
+// and merge them (one command per line, the list shown again after each),
+// then asks for the title of each commit, the branch, why and how it was
+// tested (they go into the last commit), and whether to ship.
+func (r runner) plainSplitReview(cfg reviewConfig, drafts commitDrafts) reviewOutcome {
 	cancel := reviewOutcome{action: reviewCancel}
 	t := func(key string, params map[string]string) string { return i18n.Render(r.lang, key, params) }
-	commits := make([]app.CommitSpec, 0, len(cfg.plan.Commits))
-	for i, c := range cfg.plan.Commits {
-		title, ok := r.askValid(t("cli.prompt.commit_title", map[string]string{"position": strconv.Itoa(i + 1), "default": c.Title}), c.Title,
+	for len(drafts) > 1 {
+		fmt.Fprint(r.streams.Err, t("cli.prompt.split_change", nil))
+		answer, ok := r.readLine()
+		if !ok {
+			fmt.Fprintln(r.streams.Err)
+			return cancel
+		}
+		if strings.TrimSpace(answer) == "" {
+			break
+		}
+		next, ok := drafts.applyChange(answer)
+		if !ok {
+			r.status(t("cli.split.change_invalid", nil))
+			continue
+		}
+		drafts = next
+		r.printDrafts(drafts)
+	}
+	for i := range drafts {
+		title, ok := r.askValid(t("cli.prompt.commit_title", map[string]string{"position": strconv.Itoa(i + 1), "default": drafts[i].title}), drafts[i].title,
 			func(v string) *app.Fault {
 				if check := cfg.conventions.CheckTitle(v); !check.Valid() {
 					return check.Faults[0]
@@ -225,11 +240,7 @@ func (r runner) plainSplitReview(cfg reviewConfig) reviewOutcome {
 		if !ok {
 			return cancel
 		}
-		spec := app.CommitSpec{Title: title}
-		for _, h := range c.Hunks {
-			spec.Hunks = append(spec.Hunks, h.Ref())
-		}
-		commits = append(commits, spec)
+		drafts[i].title = title
 	}
 	branch := cfg.plan.Branch
 	if cfg.plan.CreatesBranch {
@@ -248,8 +259,18 @@ func (r runner) plainSplitReview(cfg reviewConfig) reviewOutcome {
 	if !ok || !r.confirm(t("cli.ship.confirm", nil)) {
 		return cancel
 	}
-	return reviewOutcome{action: reviewShip, title: cfg.plan.Title, branch: branch, why: why, tested: tested,
-		commits: commits, hunksDigest: cfg.plan.HunksDigest}
+	return splitOutcome(reviewOutcome{action: reviewShip, title: cfg.plan.Title, branch: branch, why: why, tested: tested}, drafts, cfg.plan.HunksDigest)
+}
+
+// splitOutcome puts the commits into an outcome; merged back into one, they
+// are one ordinary commit with its title.
+func splitOutcome(o reviewOutcome, drafts commitDrafts, digest string) reviewOutcome {
+	if len(drafts) == 1 {
+		o.title = strings.TrimSpace(drafts[0].title)
+		return o
+	}
+	o.commits, o.hunksDigest = drafts.specs(), digest
+	return o
 }
 
 // plainStackReview asks for the title and the branch of each layer, bottom

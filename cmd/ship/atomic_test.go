@@ -38,12 +38,12 @@ func TestShipSplitsTheWorkByIntent(t *testing.T) {
 	s.write("vat.go", "package shop\n\nfunc VAT() int { return 20 }\n")
 	s.write("vat_test.go", "package shop\n\nimport \"testing\"\n\nfunc TestVAT(t *testing.T) { _ = VAT() }\n")
 
-	// Yes to the split, every default, then ship.
-	code, _, stderr := s.answer(strings.Repeat("\n", 7), "--plain", "--local")
+	// Yes to the split, no change, every default, then ship.
+	code, _, stderr := s.answer(strings.Repeat("\n", 8), "--plain", "--local")
 	if code != 0 {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
-	for _, want := range []string{"This work does 2 things", "renames total to sum: cart.go", "Make 2 commits?", "✓ 2 commits on "} {
+	for _, want := range []string{"This work does 2 things", "renames total to sum\n     1.1 cart.go:3  func total() int { → func sum() int {", "Make 2 commits?", "✓ 2 commits on "} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("stderr lacks %q:\n%s", want, stderr)
 		}
@@ -86,7 +86,7 @@ func TestShipSplitsOneFileByHunk(t *testing.T) {
 	final := "package shop\n\nfunc sum() int {\n\treturn 1\n}\n\nfunc checkout() int {\n\treturn sum()\n}\n\nfunc Discount() int { return 5 }\n"
 	s.write("cart.go", final)
 
-	code, _, stderr := s.answer(strings.Repeat("\n", 7), "--plain", "--local")
+	code, _, stderr := s.answer(strings.Repeat("\n", 8), "--plain", "--local")
 	if code != 0 {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
@@ -151,5 +151,57 @@ func TestSplitRefusedWhenTheWorkChanged(t *testing.T) {
 	}
 	if n := s.sh("rev-list", "--count", "HEAD"); n != "1" || s.sh("branch", "--show-current") != "main" {
 		t.Errorf("something changed: %s commits on %s", n, s.sh("branch", "--show-current"))
+	}
+}
+
+// TestPlainReviewMovesAChange: #36. Line by line, the test file moves to
+// the rename commit, then the commits swap: the commits follow.
+func TestPlainReviewMovesAChange(t *testing.T) {
+	s := newScenario(t, nil)
+	s.write("cart.go", "package shop\n\nfunc total() int {\n\treturn 1\n}\n\nfunc checkout() int {\n\treturn total()\n}\n")
+	s.sh("add", "--all")
+	s.sh("commit", "--quiet", "-m", "🎉 chore: init")
+	s.write("cart.go", "package shop\n\nfunc sum() int {\n\treturn 1\n}\n\nfunc checkout() int {\n\treturn sum()\n}\n")
+	s.write("vat.go", "package shop\n\nfunc VAT() int { return 20 }\n")
+	s.write("vat_test.go", "package shop\n\nimport \"testing\"\n\nfunc TestVAT(t *testing.T) { _ = VAT() }\n")
+
+	// Yes to the split, an invalid change, 2.2 to commit 1, swap, done.
+	code, _, stderr := s.answer("\n9.9 1\n2.2 1\ndown 1\n\n"+strings.Repeat("\n", 6), "--plain", "--local")
+	if code != 0 {
+		t.Fatalf("exit %d\n%s", code, stderr)
+	}
+	if !strings.Contains(stderr, "✗ Not a change") {
+		t.Errorf("the invalid change was not explained:\n%s", stderr)
+	}
+	if subjects := s.sh("log", "--format=%s", "main..HEAD"); subjects != "♻️ refactor: rename total to sum\n✨ feat: add vat" {
+		t.Fatalf("commits:\n%s", subjects)
+	}
+	if files := s.sh("show", "--name-only", "--format=", "HEAD~1"); files != "vat.go" {
+		t.Errorf("the first commit holds %q", files)
+	}
+	if files := s.sh("show", "--name-only", "--format=", "HEAD"); files != "cart.go\nvat_test.go" {
+		t.Errorf("the last commit holds %q", files)
+	}
+}
+
+// TestPlainReviewMergesBackIntoOne: merged into one, the work is one
+// ordinary commit with the title kept.
+func TestPlainReviewMergesBackIntoOne(t *testing.T) {
+	s := newScenario(t, nil)
+	s.write("cart.go", "package shop\n\nfunc total() int {\n\treturn 1\n}\n\nfunc checkout() int {\n\treturn total()\n}\n")
+	s.sh("add", "--all")
+	s.sh("commit", "--quiet", "-m", "🎉 chore: init")
+	s.write("cart.go", "package shop\n\nfunc sum() int {\n\treturn 1\n}\n\nfunc checkout() int {\n\treturn sum()\n}\n")
+	s.write("vat.go", "package shop\n\nfunc VAT() int { return 20 }\n")
+
+	code, _, stderr := s.answer("\nmerge 2 1\n"+strings.Repeat("\n", 5), "--plain", "--local")
+	if code != 0 {
+		t.Fatalf("exit %d\n%s", code, stderr)
+	}
+	if subjects := s.sh("log", "--format=%s", "main..HEAD"); subjects != "✨ feat: add vat" {
+		t.Errorf("commits:\n%s", subjects)
+	}
+	if status := s.sh("status", "--porcelain"); status != "" {
+		t.Errorf("work left behind:\n%s", status)
 	}
 }

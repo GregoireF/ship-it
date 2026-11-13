@@ -1,0 +1,24 @@
+⛵ ship · main → feat/add-vat-rate
+
+  Keys
+    Enter           ship (in a text field: next field)
+    Ctrl+Enter, F2  ship from anywhere, a text field included
+    Ctrl+L          commit locally only: no push, no pull request
+    Tab, Shift+Tab  next or previous field
+    ↑ ↓             move in the files and the parts
+    Space           select or unselect a file; ship only a part
+    ← →             fold or unfold the files
+    ?               this help (outside a text field)
+    Esc, Ctrl+C     cancel: nothing changes
+
+  In the commits
+    ↑ ↓              move among the commits and their changes
+    Enter            on a commit: edit its title (Enter again to keep it)
+    Shift+↑ ↓, K J   on a commit: move it one place up or down
+                     on a change: move it to the commit above or below
+    1 to 9           on a change: move it to that commit
+    m                on a commit: merge the commit below into it
+    s                switch between these commits and one commit
+  A commit left without changes goes away.
+
+  Any key closes this help.

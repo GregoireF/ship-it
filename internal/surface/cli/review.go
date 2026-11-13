@@ -53,6 +53,9 @@ const (
 	// fieldType picks the commit type among those the project allows, shown
 	// only when its commitlint refuses the planned one (PlanView.TypeChoices).
 	fieldType
+	// fieldCommits arranges the commits of a split by intent (#36), shown
+	// when the plan proposes several (PlanView.Commits).
+	fieldCommits
 )
 
 const (
@@ -117,6 +120,16 @@ type reviewModel struct {
 	planning bool
 	planErr  error
 
+	// drafts are the commits of a split by intent as the human arranges
+	// them; split is whether the work ships as them (s switches). commitRow
+	// is the cursor among their rows (a commit, then its changes), editing
+	// the commit whose title is being edited in commitTitle (-1: none).
+	drafts      commitDrafts
+	split       bool
+	commitRow   int
+	editing     int
+	commitTitle lineInput
+
 	done    bool
 	outcome reviewOutcome
 }
@@ -139,7 +152,10 @@ func newReviewModel(cfg reviewConfig) reviewModel {
 	m := reviewModel{
 		cfg: cfg, plan: cfg.plan, files: slices.Clone(cfg.plan.Files), selected: map[string]bool{},
 		planTitle: cfg.plan.Title, planBranch: cfg.plan.Branch, autoBranch: cfg.plan.Branch,
-		focus: fieldFiles, width: reviewWidth, delay: replanDelay,
+		focus: fieldFiles, width: reviewWidth, delay: replanDelay, editing: -1,
+	}
+	if len(cfg.plan.Commits) > 1 {
+		m.drafts, m.split, m.focus = draftsOf(cfg.plan.Commits), true, fieldCommits
 	}
 	for _, f := range m.files {
 		m.selected[f] = true
@@ -241,6 +257,9 @@ func (m reviewModel) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.notice = ""
+	if m.editing >= 0 {
+		return m.editKey(msg)
+	}
 	switch k {
 	case "ctrl+c", "esc":
 		return m.quit(reviewOutcome{action: reviewCancel})
@@ -257,9 +276,16 @@ func (m reviewModel) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if isTextField(m.focus) {
 			return m.move(1)
 		}
+		if m.focus == fieldCommits && m.splitting() {
+			if row := m.commitRows()[m.commitRow]; row.hunk < 0 {
+				return m.startEditing(row.commit)
+			}
+		}
 		return m.finish(reviewShip)
 	}
 	switch m.focus {
+	case fieldCommits:
+		return m.commitsKey(k)
 	case fieldFiles:
 		return m.filesKey(k)
 	case fieldParts:
@@ -368,6 +394,15 @@ func (m *reviewModel) applyPlan(p app.PlanView, err error) {
 	if untouched {
 		m.proposeBranch(true)
 	}
+	// A new selection is planned again, split included: the arrangement
+	// starts over from the new plan.
+	m.drafts, m.commitRow, m.editing = draftsOf(p.Commits), 0, -1
+	if len(m.drafts) < 2 {
+		m.drafts = nil
+		if m.focus == fieldCommits {
+			m.focus = fieldFiles
+		}
+	}
 }
 
 func (m reviewModel) selectedCount() int {
@@ -398,10 +433,15 @@ func (m reviewModel) only() []string {
 // fields lists the fields the screen shows, in Tab order.
 func (m reviewModel) fields() []reviewField {
 	var fields []reviewField
-	if len(m.plan.TypeChoices) > 0 {
-		fields = append(fields, fieldType)
+	if len(m.drafts) > 1 {
+		fields = append(fields, fieldCommits)
 	}
-	fields = append(fields, fieldTitle)
+	if !m.splitting() {
+		if len(m.plan.TypeChoices) > 0 {
+			fields = append(fields, fieldType)
+		}
+		fields = append(fields, fieldTitle)
+	}
 	if m.plan.CreatesBranch {
 		fields = append(fields, fieldBranch)
 	}
@@ -448,6 +488,8 @@ func (m reviewModel) finish(action reviewAction) (tea.Model, tea.Cmd) {
 	case len(m.plan.Secrets) > 0:
 		m.notice = t("cli.review.blocked.secrets")
 		return m.focusOn(fieldFiles)
+	case m.splitting():
+		return m.finishSplit(action, branch)
 	case app.TypeAllowed(title, m.plan.TypeChoices) != nil:
 		m.notice = t("cli.review.blocked.type")
 		return m.focusOn(fieldType)
@@ -498,6 +540,9 @@ var (
 func (m reviewModel) labelWidth() int {
 	w := 0
 	labels := []string{"title", "branch", "why", "tested", "files"}
+	if len(m.drafts) > 1 {
+		labels = append(labels, "commits")
+	}
 	if len(m.plan.TypeChoices) > 0 {
 		labels = append(labels, "type")
 	}
@@ -532,7 +577,14 @@ func (m reviewModel) render() string {
 	}
 	line("")
 	if m.help {
-		for _, l := range strings.Split(t("cli.review.help", nil), "\n") {
+		help := t("cli.review.help", nil)
+		if len(m.drafts) > 1 {
+			// Before the closing line of the help.
+			if i := strings.LastIndex(help, "\n\n"); i >= 0 {
+				help = help[:i] + "\n\n" + t("cli.review.help_commits", nil) + help[i:]
+			}
+		}
+		for _, l := range strings.Split(help, "\n") {
 			line("  " + l)
 		}
 		return b.String()
@@ -550,6 +602,48 @@ func (m reviewModel) render() string {
 	}
 	room := m.width - lw - 4
 
+	if len(m.drafts) > 1 {
+		m.renderCommits(line, label(fieldCommits, "commits"))
+	}
+	if !m.splitting() {
+		m.renderTitle(line, label, indent, room)
+	}
+	if m.plan.CreatesBranch {
+		line(label(fieldBranch, "branch") + m.inputs[fieldBranch].view())
+		if check := m.cfg.checkBranch(strings.TrimSpace(m.inputs[fieldBranch].Value())); check.Valid() {
+			line(indent + styleOK.Render(t("cli.review.branch_valid", nil)))
+		} else {
+			line(indent + styleBad.Render(fit("✗ "+t(check.Fault.Key, check.Fault.Params), room)))
+		}
+	} else {
+		line(label(fieldBranch, "branch") + m.plan.Branch + styleFaint.Render("  ("+t("cli.review.branch_stays", nil)+")"))
+	}
+	line(label(fieldWhy, "why") + m.inputs[fieldWhy].view())
+	line(label(fieldTested, "tested") + m.inputs[fieldTested].view())
+	line("")
+
+	m.renderFiles(line, label(fieldFiles, "files"), indent, room)
+	m.renderWarnings(line)
+
+	line("")
+	if m.notice != "" {
+		line(m.notice)
+	}
+	keys := "cli.review.keys"
+	switch {
+	case isTextField(m.focus) || m.editing >= 0:
+		keys = "cli.review.keys_text"
+	case m.focus == fieldCommits && m.splitting():
+		keys = "cli.review.keys_commits"
+	}
+	line(styleFaint.Render(t(keys, nil)))
+	return b.String()
+}
+
+// renderTitle shows the title of one commit, and the type to pick when the
+// project's commitlint refuses the planned one.
+func (m reviewModel) renderTitle(line func(string), label func(reviewField, string) string, indent string, room int) {
+	t := func(key string, params map[string]string) string { return i18n.Render(m.cfg.lang, key, params) }
 	title := strings.TrimSpace(m.inputs[fieldTitle].Value())
 	if choices := m.plan.TypeChoices; len(choices) > 0 {
 		current := m.cfg.conventions.TypeOfTitle(title)
@@ -580,34 +674,6 @@ func (m reviewModel) render() string {
 		f := check.Faults[0]
 		line(indent + styleBad.Render(fit("✗ "+t(f.Key, f.Params), room)))
 	}
-
-	if m.plan.CreatesBranch {
-		line(label(fieldBranch, "branch") + m.inputs[fieldBranch].view())
-		if check := m.cfg.checkBranch(strings.TrimSpace(m.inputs[fieldBranch].Value())); check.Valid() {
-			line(indent + styleOK.Render(t("cli.review.branch_valid", nil)))
-		} else {
-			line(indent + styleBad.Render(fit("✗ "+t(check.Fault.Key, check.Fault.Params), room)))
-		}
-	} else {
-		line(label(fieldBranch, "branch") + m.plan.Branch + styleFaint.Render("  ("+t("cli.review.branch_stays", nil)+")"))
-	}
-	line(label(fieldWhy, "why") + m.inputs[fieldWhy].view())
-	line(label(fieldTested, "tested") + m.inputs[fieldTested].view())
-	line("")
-
-	m.renderFiles(line, label(fieldFiles, "files"), indent, room)
-	m.renderWarnings(line)
-
-	line("")
-	if m.notice != "" {
-		line(m.notice)
-	}
-	keys := "cli.review.keys"
-	if isTextField(m.focus) {
-		keys = "cli.review.keys_text"
-	}
-	line(styleFaint.Render(t(keys, nil)))
-	return b.String()
 }
 
 func (m reviewModel) renderFiles(line func(string), label, indent string, room int) {
