@@ -81,6 +81,12 @@ A remedy marked *planned* does not exist yet; the others do. This page describes
 | A ruleset requires signed commits and one is not | the `gpgsig` header of the commits (not `%G?`, which says "N" for an SSH signature it cannot verify) | `SHIP-E0615` before the push, with the signing setup and `git rebase --exec "git commit --amend --no-edit -S"`. | 🟡 |
 | The rules cannot be read (404 on GitHub Enterprise Server without rulesets or without access, or 403) | API status | ship goes on without rules and logs it at debug level; GitHub still enforces them at push time. | 🟢 |
 
+## When the message is not enough
+
+- The [error reference](errors.md) explains every `SHIP-E` and `SHIP-W` code, with its remedy. *Planned*: `ship explain <code>` prints that page offline ([#52](https://github.com/GregoireF/ship-it/issues/52)).
+- `ship doctor --deep` looks for what would fail later: the token's scopes, the rulesets that would refuse the branch or its commits, and the project's checks, run once ([CLI reference](cli.md#ship-doctor)).
+- `ship bug` turns the journal of the run that failed into a bug report you read before sending, and opens it prefilled on GitHub once you agree; ship sends nothing itself ([logs](logs.md#9-bug-reports-no-telemetry)).
+
 ## How `ship fix` uses this playbook
 
 - `ship fix` runs every detector and proposes the remedies together: a list, one confirmation (Enter, or `--yes`), a checkpoint, and one `fix` entry in the operation log that keeps the previous state of each change. `ship undo` puts everything back in reverse order. Problems that need a human decision stay listed with their command.
