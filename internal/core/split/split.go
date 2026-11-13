@@ -114,6 +114,10 @@ var testSuffixes = [][2]string{
 	{"_test.py", ".py"},
 }
 
+// Subject is the file a test file tests, in the same directory (vat_test.go
+// → vat.go, test_vat.py → vat.py), or "" when p is not a test file.
+func Subject(p string) string { return subject(p) }
+
 // subject is the file a test file tests, in the same directory (vat_test.go →
 // vat.go, test_vat.py → vat.py), or "" when p is not a test file.
 func subject(p string) string {

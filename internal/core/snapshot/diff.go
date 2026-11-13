@@ -22,6 +22,16 @@ type FileDiff struct {
 	Binary       bool
 	Added        []Line
 	Removed      []string
+	// Hunks are the same changes, as the diff splits them (#35).
+	Hunks []Hunk
+}
+
+// Hunk is one "@@" block of a diff: where it starts in each version, and
+// its removed and added lines, in order.
+type Hunk struct {
+	OldStart, NewStart int
+	Removed            []string
+	Added              []string
 }
 
 // ParseUnifiedDiff parses the output of `git diff` (unified format, any
@@ -66,11 +76,16 @@ func ParseUnifiedDiff(diff string) []FileDiff {
 		case strings.HasPrefix(line, "@@ "):
 			newLine = hunkNewStart(line)
 			inHunk = true
+			current.Hunks = append(current.Hunks, Hunk{OldStart: hunkStart(line, " -"), NewStart: newLine})
 		case inHunk && strings.HasPrefix(line, "+"):
 			current.Added = append(current.Added, Line{Number: newLine, Text: line[1:]})
+			h := &current.Hunks[len(current.Hunks)-1]
+			h.Added = append(h.Added, line[1:])
 			newLine++
 		case inHunk && strings.HasPrefix(line, "-"):
 			current.Removed = append(current.Removed, line[1:])
+			h := &current.Hunks[len(current.Hunks)-1]
+			h.Removed = append(h.Removed, line[1:])
 		case inHunk && strings.HasPrefix(line, " "):
 			newLine++
 		}
@@ -90,12 +105,16 @@ func pathsFromDiffHeader(line string) (path, original string) {
 }
 
 // hunkNewStart reads the new-file start line of "@@ -a,b +c,d @@".
-func hunkNewStart(header string) int {
-	plus := strings.Index(header, " +")
-	if plus < 0 {
+func hunkNewStart(header string) int { return hunkStart(header, " +") }
+
+// hunkStart reads the start line after marker (" -" or " +") of a hunk
+// header.
+func hunkStart(header, marker string) int {
+	at := strings.Index(header, marker)
+	if at < 0 {
 		return 0
 	}
-	field := header[plus+2:]
+	field := header[at+2:]
 	if end := strings.IndexAny(field, ", "); end >= 0 {
 		field = field[:end]
 	}
