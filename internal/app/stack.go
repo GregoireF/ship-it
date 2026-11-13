@@ -211,6 +211,9 @@ func DeliverStack(ctx context.Context, ws Workspace, req StackDeliveryRequest) (
 	} else if len(found) > 0 {
 		return StackDeliveryResult{}, &SecretsFoundError{Findings: found}
 	}
+	if err := checkAgentPaths(ctx, ws, diffPaths(diffs)); err != nil {
+		return StackDeliveryResult{}, err
+	}
 	eff, err := LoadSettingsFor(ctx, ws, diffPaths(diffs))
 	if err != nil {
 		return StackDeliveryResult{}, err

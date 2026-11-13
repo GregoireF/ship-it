@@ -112,6 +112,26 @@ Run `ship mcp` as a stdio MCP server, from the repository you work in. It speaks
 
 `ship skill install` writes it alone, for every agent at once: `.agents/skills/ship-it/SKILL.md`, read by Codex, Cursor and VS Code, and `.claude/skills/ship-it/SKILL.md`, read by Claude Code and VS Code. A `SKILL.md` you wrote yourself in those folders is never replaced. `ship skill install --print` shows it; commit the files so the team's agents get them.
 
+## Rules per agent
+
+`ship.agents` sets what each agent may do, in `.github/ship.json` (shared with the team) or your own settings. The agent is the one `ship mcp install --client` names (`claude`, `vscode`, `cursor`, `codex`), or the name it gives when it connects; `"*"` applies to every agent, including one that gives no name.
+
+```json
+{
+  "ship": {
+    "agents": {
+      "*": { "protectedPaths": [".github/workflows/**", "go.mod"] },
+      "vscode": { "tools": ["ship_status", "ship_plan", "ship_deliver"] }
+    }
+  }
+}
+```
+
+- `tools`: the `ship_*` tools the agent may call; the others are not listed to it, and a call is refused (`SHIP-E0802`). Empty allows every tool. An agent's own list replaces the one of `"*"`.
+- `protectedPaths`: glob patterns of files the agent may not deliver. `ship_deliver` and `ship_stack` refuse work that touches one (`SHIP-E0803`), name the file, and commit nothing; a human delivers it, or the agent delivers the rest with `only`. Protected paths of `"*"` and of the agent add up.
+
+They apply to agents working alone (`ship mcp`); through the VS Code extension (`ship mcp --attended`) a human reviews each step. An organisation policy can enforce `ship.agents` like any other setting.
+
 ## The tools
 
 | Tool | Arguments | What it returns |

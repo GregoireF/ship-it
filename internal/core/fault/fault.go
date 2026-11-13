@@ -121,6 +121,12 @@ const (
 // Codes of the organisation policy (08xx range): they exit with code 5.
 const (
 	PolicyConflict Code = "SHIP-E0801"
+	// AgentToolNotAllowed: ship.agents does not let this agent call the
+	// tool (#48).
+	AgentToolNotAllowed Code = "SHIP-E0802"
+	// AgentPathProtected: the work touches a path ship.agents protects from
+	// this agent; a human delivers it.
+	AgentPathProtected Code = "SHIP-E0803"
 )
 
 // Codes of publishing to GitHub (06xx range).

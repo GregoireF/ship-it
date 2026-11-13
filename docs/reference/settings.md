@@ -59,6 +59,7 @@ Every key of `.github/ship.json`, the user file, presets, contexts and overrides
 | `ship.watch.pauseSeconds` | integer ≥ 1 | `10` | `SHIP_WATCH_PAUSESECONDS` | Seconds without any change in the files after which ship watch takes a checkpoint. |
 | `ship.watch.keepHours` | integer ≥ 1 | `48` | `SHIP_WATCH_KEEPHOURS` | Hours ship gc keeps the checkpoints of ship watch; they do not count in the 20 most recent checkpoints of operations. |
 | `ship.watch.keepMax` | integer ≥ 1 | `200` | `SHIP_WATCH_KEEPMAX` | Most checkpoints of ship watch that ship gc keeps, the newest first. |
+| `ship.agents` | object: agent name or "*" → {tools, protectedPaths} | `{}` | `SHIP_AGENTS` | Rules per coding agent working through ship mcp, by the name ship mcp install --client gives (claude, vscode, cursor, codex) or the agent's own, and "*" for every agent: tools, the ship_* tools it may call (all when empty); protectedPaths, glob patterns of files it may not deliver. An agent's tools replace those of "*"; protected paths add up. |
 | `github.managedBy` | string | `""` | `SHIP_GITHUB_MANAGEDBY` | Tool already managing this repository (opentofu, terraform…): ship sync then only reports differences. |
 | `github.labels.taxonomy` | `ship-it` \| `none` | `"ship-it"` | `SHIP_GITHUB_LABELS_TAXONOMY` | Label set to maintain. |
 | `github.labels.areas` | list of strings | `[]` | `SHIP_GITHUB_LABELS_AREAS` | Names of area/ labels, usually the commit scopes. |

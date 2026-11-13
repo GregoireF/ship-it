@@ -94,5 +94,6 @@ func WithAgent(ws Workspace, name string) Workspace {
 	if name != "" && ws.Operations != nil {
 		ws.Operations = agentLog{OperationLog: ws.Operations, name: name}
 	}
+	ws.AgentName = name
 	return ws
 }

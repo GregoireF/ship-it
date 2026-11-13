@@ -688,6 +688,22 @@ Ship mcp install cannot add ship-it to a client's file without risking the rest 
 
 > {organization} imposes {key} = {imposed}: it cannot be set to {value} in the {source} file. Ask {contact} for an exception.
 
+### SHIP-E0802
+
+Ship.agents does not let this agent call the tool (#48).
+
+*Exit code 1.*
+
+> ship.agents does not let the agent {agent} call {tool}: ask a human to run it, or to allow it in .github/ship.json.
+
+### SHIP-E0803
+
+The work touches a path ship.agents protects from this agent; a human delivers it.
+
+*Exit code 1.*
+
+> {path} is protected from the agent {agent} (ship.agents, {pattern}): nothing was committed. Leave this file to a human, or deliver the rest with only.
+
 ## Safety gates
 
 ### SHIP-E0901

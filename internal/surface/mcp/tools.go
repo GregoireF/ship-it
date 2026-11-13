@@ -325,6 +325,9 @@ func (s *Server) callTool(ctx context.Context, name string, args json.RawMessage
 		if t.name != name {
 			continue
 		}
+		if err := app.AgentToolRefused(ctx, s.workspace(false), name); err != nil {
+			return map[string]any{"content": []map[string]any{{"type": "text", "text": s.explain(err)}}, "isError": true}, nil
+		}
 		result, err := t.run(ctx, s, args)
 		if err != nil {
 			return map[string]any{"content": []map[string]any{{"type": "text", "text": s.explain(err)}}, "isError": true}, nil
