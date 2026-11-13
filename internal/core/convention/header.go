@@ -47,6 +47,18 @@ func ParseHeader(s string) (Header, error) { return Rules{}.ParseHeader(s) }
 // the grammar and that the type is in the repository's table only; use
 // Validate for the style rules.
 func (r Rules) ParseHeader(s string) (Header, error) {
+	h, err := parseGrammar(s)
+	if err != nil {
+		return Header{}, err
+	}
+	if _, ok := r.LookupCommitType(h.Type); !ok {
+		return Header{}, fault.New(fault.UnknownCommitType, "convention.header.unknown_type", "type", string(h.Type))
+	}
+	return h, nil
+}
+
+// parseGrammar reads a header whatever its type: the grammar only.
+func parseGrammar(s string) (Header, error) {
 	line := strings.TrimRight(firstLine(s), " \t\r")
 	if strings.TrimSpace(line) == "" {
 		return Header{}, fault.New(fault.EmptyHeader, "convention.header.empty")
@@ -66,9 +78,6 @@ func (r Rules) ParseHeader(s string) (Header, error) {
 		if gitmoji, rest, ok := splitLeadingGitmoji(h.Subject); ok {
 			h.Gitmoji, h.Subject = gitmoji, rest
 		}
-	}
-	if _, ok := r.LookupCommitType(h.Type); !ok {
-		return Header{}, fault.New(fault.UnknownCommitType, "convention.header.unknown_type", "type", string(h.Type))
 	}
 	return h, nil
 }

@@ -14,8 +14,8 @@ ship-it turns finished work into a conventional commit on its own branch and a p
 If the `ship_*` tools are available, use them; otherwise use the `ship` command with the same steps (below).
 
 1. `ship_status`: where the work stands and the one next action.
-2. `ship_plan`: what a delivery would do (title, branch, files, secrets found). Read it before going on. If it reports a secret, stop and tell the human.
-3. `ship_deliver`: one conventional commit on a dedicated branch, with a checkpoint first. Pass `title` only to improve the planned one; it is checked against the project's conventions. Pass `why` and `tested` when you know them.
+2. `ship_plan`: what a delivery would do (title, branch, files, secrets found) and the repository's `conventions`: the title and branch formats, the commit types with what each is for, the allowed scopes and the limits. Read it before going on. If it reports a secret, stop and tell the human.
+3. `ship_deliver`: one conventional commit on a dedicated branch, with a checkpoint first. You know why the code changed, the plan only reads the diff: always pass your own `title` and `branch`, written with the `conventions` of `ship_plan` (its title shows the format). Pass `why` and `tested` when you know them. If ship-it refuses them, it lists every rule they break and proposes a title and a branch that pass: call `ship_deliver` again with them, or with your own rewrite.
 4. `ship_publish`: runs the project's checks, pushes and opens a **draft** pull request, or updates the open one. A red check stops it: fix the cause, then publish again.
 5. `ship_undo`: reverts the last local operation, keeping the files. Undoing a publication is left to a human.
 

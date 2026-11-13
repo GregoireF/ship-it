@@ -141,7 +141,7 @@ Every operation made through `ship mcp` records the agent's name. `ship log --ag
 | Tool | Arguments | What it returns |
 |---|---|---|
 | `ship_status` | `offline` | Where the work stands: branch, uncommitted files, ahead and behind the default branch, the open pull request, what `ship_undo` would revert (`undoable`) and the one next action (`next`). Read-only. |
-| `ship_plan` | `only`, `issue` | What `ship_deliver` would do: conventional title, branch, files, the reasons for each choice, secrets found, the allowed types when the project's commitlint refuses the planned one (`type_choices`), and a split suggestion when the change is large (`size`). Changes nothing. |
+| `ship_plan` | `only`, `issue` | What `ship_deliver` would do: conventional title, branch, files, the reasons for each choice, secrets found, the allowed types when the project's commitlint refuses the planned one (`type_choices`), a split suggestion when the change is large (`size`), and the repository's `conventions` for a title and a branch of the agent's own. Changes nothing. |
 | `ship_deliver` | `title`, `branch`, `only`, `issue`, `why`, `tested`, `dryRun` | A checkpoint, a dedicated branch when on the default branch, then one conventional commit. Returns the operation id, checkpoint, branch, whether it created the branch, commit and title. Nothing is pushed. |
 | `ship_publish` | `issue`, `dryRun` | Runs the project's checks, updates the branch on the default branch, pushes it and opens a draft pull request, or updates the open one. Returns the pull request, the checks (`gates`), the labels and the warnings. |
 | `ship_undo` | `allowRemote`, `dryRun` | Reverts the last local operation of ship-it, keeping your files, and returns what it undid. A publication is refused (see below). |
@@ -153,6 +153,24 @@ Every operation made through `ship mcp` records the agent's name. `ship log --ag
 | `ship_stack_status` | `offline` | The layers of the stack the current branch belongs to, bottom first, with their pull requests and checks. Read-only. |
 
 `only` is a list of files or directories to deliver, the rest staying uncommitted. `issue` is the issue the work closes, read from the branch name when omitted. `dryRun` runs every check and returns the same result with the planned steps, changing nothing. Every tool declares an `outputSchema`, generated from the same Go types as `--json`: the result is in `structuredContent`, and the same JSON is in the text content for older clients.
+
+## How the agent names its work
+
+The plan reads the diff; the agent knows why it changed the code. The skill tells it to propose its own title and branch to `ship_deliver`, written with the `conventions` that `ship_plan` returns: the title and branch formats, the commit types with what each is for, the allowed scopes, whether one is required, and the limits. `commitlint` is set when the project's commitlint has the last word on the style.
+
+ship checks the proposal like a title you type, before anything changes. A refusal names every rule it breaks, then proposes a title and a branch that pass:
+
+```text
+SHIP-E0103 "feature" is not a known commit type.
+- SHIP-E0109 The scope "Cart" may only contain lowercase letters, digits, ".", "_", "/" and "-".
+- SHIP-E0106 Start the subject with a lowercase letter.
+- SHIP-E0107 Remove the period at the end of the subject.
+Proposed title, yours corrected: ✨ feat(cart): handle an empty cart
+Proposed branch: feat/handle-empty-cart
+Nothing was committed. Pass the proposal to ship_deliver as it is, or write your own again (ship_plan lists the conventions).
+```
+
+The proposal keeps the agent's words when a correction cannot change their meaning: a common spelling of a type (`feature`, `bugfix`, `doc`), the case of the scope or of the subject's first letter, a final period, a scope the repository does not list when none is required, a scope that makes the header too long. Otherwise (an unknown type, a subject too long, a breaking change its type does not allow) it is the plan's title: ship never cuts or rewrites a subject.
 
 ## How the agent passes "why" and "tested"
 

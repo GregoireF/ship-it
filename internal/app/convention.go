@@ -230,6 +230,9 @@ type CommitTypeView struct {
 	Gitmoji        string `json:"gitmoji"`
 	BranchPrefix   string `json:"branch_prefix"`
 	DescriptionKey string `json:"description_key"`
+	// Description is the description rendered by a surface for a client
+	// that has no catalogue (a coding agent); empty from the app layer.
+	Description string `json:"description,omitempty"`
 	// Label is the kind of its pull requests, after "kind/"; empty for none.
 	Label string `json:"label,omitempty"`
 }

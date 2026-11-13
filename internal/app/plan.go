@@ -30,6 +30,27 @@ type PlanRequest struct {
 	// Only selects part of the work: files, or directories with all under
 	// them (`ship --only src/api/`). Empty means everything.
 	Only []string
+	// Conventions adds the repository's conventions to the plan, for a
+	// coding agent that proposes its own title and branch (ship_plan).
+	Conventions bool
+}
+
+// ConventionsView tells how a title and a branch of the repository look, so
+// that a coding agent can propose its own.
+type ConventionsView struct {
+	// TitleFormat and BranchFormat show the parts and where they go.
+	TitleFormat  string           `json:"title_format"`
+	BranchFormat string           `json:"branch_format"`
+	Types        []CommitTypeView `json:"types"`
+	// Scopes lists the allowed scopes; empty allows any.
+	Scopes         []string `json:"scopes,omitempty"`
+	ScopeRequired  bool     `json:"scope_required,omitempty"`
+	SubjectMax     int      `json:"subject_max"`
+	HeaderMax      int      `json:"header_max"`
+	BranchMaxWords int      `json:"branch_max_words"`
+	// Commitlint is set when the project's commitlint has the last word on
+	// the style of a title.
+	Commitlint bool `json:"commitlint,omitempty"`
 }
 
 // SizeView warns that the work is larger than a pull request reviews well,
@@ -59,6 +80,8 @@ type PlanView struct {
 	// Size is set when the work exceeds ship.pullRequest.maxLines. It never
 	// blocks (decision of 2026-10-23).
 	Size *SizeView `json:"size,omitempty"`
+	// Conventions is set on request (PlanRequest.Conventions).
+	Conventions *ConventionsView `json:"conventions,omitempty"`
 
 	reads *repositoryReads // see Reads
 }
@@ -138,6 +161,9 @@ func ProposePlan(ctx context.Context, ws Workspace, req PlanRequest) (PlanView, 
 		view.Title, view.Branch = rules.Format(initial, placement), status.Branch.Name
 		view.Reasons = []ReasonView{{Key: "plan.reason.initial_commit"}}
 	}
+	if req.Conventions {
+		view.Conventions = conventionsView(rules, placement)
+	}
 	return planWithCommitlint(ctx, ws, rules, placement, view)
 }
 
@@ -149,6 +175,9 @@ func planWithCommitlint(ctx context.Context, ws Workspace, rules convention.Rule
 	cfg := projectCommitlint(ctx, ws)
 	if cfg == nil {
 		return view, nil
+	}
+	if view.Conventions != nil {
+		view.Conventions.Commitlint = true
 	}
 	header, err := rules.ParseHeader(view.Title)
 	if err != nil {
@@ -169,6 +198,23 @@ func planWithCommitlint(ctx context.Context, ws Workspace, rules convention.Rule
 	}
 	view.Title, view.Reasons = title, append(view.Reasons, reasons...)
 	return view, nil
+}
+
+// conventionsView describes the title and branch conventions of rules, the
+// title written with the repository's gitmoji placement.
+func conventionsView(rules convention.Rules, placement convention.GitmojiPlacement) *ConventionsView {
+	title := convention.Format(convention.Header{Gitmoji: "<gitmoji>", Type: "<type>", Scope: "<scope>", Subject: "<subject>"}, placement)
+	branch := "<prefix>/<issue>-<words>"
+	if rules.BranchWithoutIssue {
+		branch = "<prefix>/<words>"
+	}
+	return &ConventionsView{
+		TitleFormat: title, BranchFormat: branch,
+		Types:  Conventions{rules: rules}.CommitTypes(),
+		Scopes: rules.Scopes, ScopeRequired: rules.ScopeRequired,
+		SubjectMax: rules.SubjectMax(), HeaderMax: rules.HeaderMax(),
+		BranchMaxWords: rules.BranchWordsMax(),
+	}
 }
 
 // initialCommit uses 🎉, the gitmoji of "Begin a project".
