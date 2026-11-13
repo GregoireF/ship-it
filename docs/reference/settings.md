@@ -56,6 +56,9 @@ Every key of `.github/ship.json`, the user file, presets, contexts and overrides
 | `ship.logs.blackBoxBytes` | integer ≥ 65536 | `1048576` | `SHIP_LOGS_BLACKBOXBYTES` | Size in bytes of the in-memory black box (DEBUG records of the run), written to disk only when a run fails. At least 64 KiB. |
 | `ship.stack.rebase` | `local` \| `github` | `"github"` | `SHIP_STACK_REBASE` | Who rebases the layers above a merged one: "github" (GitHub's own rebase, which creates signed replacement commits; ship stack sync only follows it) or "local" (ship stack sync rebases on this machine with your signing key, then pushes with a lease). A classic chain of pull requests is always rebased locally. |
 | `ship.stack.maxLayers` | integer ≥ 2 | `5` | `SHIP_STACK_MAXLAYERS` | Most layers ship stack splits the work into; the smaller areas are grouped in the top layer beyond it. |
+| `ship.watch.pauseSeconds` | integer ≥ 1 | `10` | `SHIP_WATCH_PAUSESECONDS` | Seconds without any change in the files after which ship watch takes a checkpoint. |
+| `ship.watch.keepHours` | integer ≥ 1 | `48` | `SHIP_WATCH_KEEPHOURS` | Hours ship gc keeps the checkpoints of ship watch; they do not count in the 20 most recent checkpoints of operations. |
+| `ship.watch.keepMax` | integer ≥ 1 | `200` | `SHIP_WATCH_KEEPMAX` | Most checkpoints of ship watch that ship gc keeps, the newest first. |
 | `github.managedBy` | string | `""` | `SHIP_GITHUB_MANAGEDBY` | Tool already managing this repository (opentofu, terraform…): ship sync then only reports differences. |
 | `github.labels.taxonomy` | `ship-it` \| `none` | `"ship-it"` | `SHIP_GITHUB_LABELS_TAXONOMY` | Label set to maintain. |
 | `github.labels.areas` | list of strings | `[]` | `SHIP_GITHUB_LABELS_AREAS` | Names of area/ labels, usually the commit scopes. |

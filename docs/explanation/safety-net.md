@@ -50,6 +50,10 @@ Because they are visible to other people, ship asks you to confirm remote compen
 - Something you did **outside ship**, such as a `git commit` you typed yourself. ship records only its own operations.
 - A `ship sync` of labels: it is recorded for audit, not reverted.
 
+## A time machine between operations
+
+ship takes a checkpoint before each of its operations, but an hour of edits between two of them can still be lost to a bad refactor, or to an agent that rewrote the wrong file. `ship watch`, left running in a terminal, closes that gap: after each pause in your edits it takes a checkpoint, and nothing while nothing changes. It only reads the files' metadata between checkpoints (about 50 ms with `git status`, measured on 20,000 files), and the store reuses every unchanged file, so a checkpoint costs little. `ship rewind` then goes back to any of them.
+
 ## Restoring a checkpoint by hand
 
 `ship undo` covers almost every case. To go back to an older state of your files, `ship rewind` lists the recent checkpoints with the files that changed in each, and asks which one:
@@ -64,4 +68,4 @@ Before writing anything, ship takes a checkpoint of your current files and shows
 
 ## Cleaning up
 
-`ship gc` removes old checkpoints. It always keeps the 20 newest, the newest of each day for the last 30 days, and every checkpoint that an operation still undoable needs (ADR-0005). `ship gc --dry-run` shows what it would remove.
+`ship gc` removes old checkpoints. It always keeps the 20 newest, the newest of each day for the last 30 days, and every checkpoint that an operation still undoable needs (ADR-0005). The checkpoints of `ship watch` do not count in those 20: it keeps the ones of the last 48 hours, 200 at most (`ship.watch.keepHours`, `ship.watch.keepMax`). `ship gc --dry-run` shows what it would remove.

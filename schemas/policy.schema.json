@@ -631,6 +631,30 @@
                 }
               },
               "type": "object"
+            },
+            "watch": {
+              "additionalProperties": false,
+              "properties": {
+                "keepHours": {
+                  "default": 48,
+                  "description": "Hours ship gc keeps the checkpoints of ship watch; they do not count in the 20 most recent checkpoints of operations.",
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "keepMax": {
+                  "default": 200,
+                  "description": "Most checkpoints of ship watch that ship gc keeps, the newest first.",
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "pauseSeconds": {
+                  "default": 10,
+                  "description": "Seconds without any change in the files after which ship watch takes a checkpoint.",
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
             }
           },
           "type": "object"

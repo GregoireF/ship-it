@@ -343,6 +343,11 @@ func (d *dryGit) DiffSince(ctx context.Context, base string) (string, error) {
 	return d.git.DiffSince(ctx, base)
 }
 
+// WorkingFingerprint reads the working tree as it is.
+func (d *dryGit) WorkingFingerprint(ctx context.Context) (string, error) {
+	return d.git.WorkingFingerprint(ctx)
+}
+
 // RecentAuthors reads the history: a rehearsal changes none of it.
 func (d *dryGit) RecentAuthors(ctx context.Context, rev, since string, paths []string) ([]ports.CommitAuthor, error) {
 	return d.git.RecentAuthors(ctx, rev, since, paths)

@@ -6,6 +6,8 @@ package gitexec
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -772,6 +774,39 @@ func (c *Client) RecentAuthors(ctx context.Context, rev, since string, paths []s
 		}
 	}
 	return authors, nil
+}
+
+// WorkingFingerprint implements ports.Git: HEAD, then each path git status
+// lists (untracked ones included, ignored ones not) with its size and
+// modification time, hashed.
+func (c *Client) WorkingFingerprint(ctx context.Context) (string, error) {
+	head, _ := c.Run(ctx, "rev-parse", "--verify", "--quiet", "HEAD")
+	out, err := c.Run(ctx, "-c", "core.quotePath=false", "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	if err != nil {
+		return "", err
+	}
+	top, err := c.TopLevel(ctx)
+	if err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	h.Write(head)
+	records := strings.Split(string(out), "\x00")
+	for i := 0; i < len(records); i++ {
+		r := records[i]
+		if len(r) < 4 {
+			continue
+		}
+		path := r[3:]
+		if r[0] == 'R' || r[0] == 'C' {
+			i++ // the next record is the old path of the rename
+		}
+		fmt.Fprintf(h, "%s\x00%s\x00", r[:2], path)
+		if info, err := os.Lstat(filepath.Join(top, filepath.FromSlash(path))); err == nil {
+			fmt.Fprintf(h, "%d\x00%d\x00", info.Size(), info.ModTime().UnixNano())
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))[:16], nil
 }
 
 // DiffSince implements ports.Git.
