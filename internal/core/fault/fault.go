@@ -170,6 +170,9 @@ const (
 // Codes of planning a delivery (02xx range).
 const (
 	NothingToShip Code = "SHIP-E0201"
+	// CommitsInvalid: the commits of a delivery do not hold each change of
+	// the work exactly once, or one of them holds nothing.
+	CommitsInvalid Code = "SHIP-E0202"
 )
 
 // Codes of the environment, checked by ship doctor (03xx range). Healthy

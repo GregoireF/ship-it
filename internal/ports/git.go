@@ -108,6 +108,15 @@ type Git interface {
 	SwitchToNewBranch(ctx context.Context, name string) error
 	// StageAll stages every change of the working tree, ignored files excluded.
 	StageAll(ctx context.Context) error
+	// ZeroContextDiff is DiffFromHead without context lines (-U0): each hunk
+	// is one change, which can be applied without the others.
+	ZeroContextDiff(ctx context.Context) (string, error)
+	// StagePaths stages the working tree state of paths (relative to the
+	// repository root), a deletion included.
+	StagePaths(ctx context.Context, paths []string) error
+	// StageContent stages content as path, with the mode path has in HEAD,
+	// without touching the working tree.
+	StageContent(ctx context.Context, path string, content []byte) error
 	// Commit records the index with message and returns the new commit id.
 	// Hooks follow the user's git configuration, signing too unless opts
 	// say otherwise.

@@ -152,6 +152,22 @@ Ship.commits.sign is "always" and git has no signing key.
 
 > Nothing to ship: the working tree is clean.
 
+### SHIP-E0202
+
+The commits of a delivery do not hold each change of the work exactly once, or one of them holds nothing.
+
+*Exit code 1.*
+
+> The work changed since the review: nothing was committed. Run ship again to review it as it is.
+
+> A commit of the split holds nothing: give it a change, or merge it with another.
+
+> A change of {path} is in no commit of the split: put it in one.
+
+> A change of {path} is in two commits of the split: keep it in one.
+
+> The split names a change of {path} the work does not hold: review the work again.
+
 ## Environment, checked by ship doctor
 
 ### SHIP-E0301

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/GregoireF/ship-it/internal/core/atomic"
 	"github.com/GregoireF/ship-it/internal/core/commitlint"
 	"github.com/GregoireF/ship-it/internal/core/config"
 	"github.com/GregoireF/ship-it/internal/core/convention"
@@ -33,6 +34,9 @@ type PlanRequest struct {
 	// Conventions adds the repository's conventions to the plan, for a
 	// coding agent that proposes its own title and branch (ship_plan).
 	Conventions bool
+	// Atomic splits the work by intent into several commits when it holds
+	// more than one (PlanView.Commits), for a human to review (#34).
+	Atomic bool
 }
 
 // ConventionsView tells how a title and a branch of the repository look, so
@@ -82,6 +86,11 @@ type PlanView struct {
 	Size *SizeView `json:"size,omitempty"`
 	// Conventions is set on request (PlanRequest.Conventions).
 	Conventions *ConventionsView `json:"conventions,omitempty"`
+	// Commits split the work by intent, on request (PlanRequest.Atomic) and
+	// when it holds several; HunksDigest identifies the work they split
+	// (DeliveryRequest.HunksDigest).
+	Commits     []CommitView `json:"commits,omitempty"`
+	HunksDigest string       `json:"hunks_digest,omitempty"`
 
 	reads *repositoryReads // see Reads
 }
@@ -163,6 +172,15 @@ func ProposePlan(ctx context.Context, ws Workspace, req PlanRequest) (PlanView, 
 	}
 	if req.Conventions {
 		view.Conventions = conventionsView(rules, placement)
+	}
+	if req.Atomic && len(req.Only) == 0 && status.Branch.Commit != "" {
+		// A failed read only loses the split: one commit, as without it.
+		if files, err := atomicWork(ctx, ws.Git, status); err == nil {
+			opts := plan.Options{Issue: req.Issue, Rules: rules, NoScope: eff.Settings.Ship.Commits.ScopeFrom == config.ScopeFromNone}
+			if view.Commits = proposeCommits(files, p.Header, opts, generated, placement); view.Commits != nil {
+				view.HunksDigest = atomic.Digest(files)
+			}
+		}
 	}
 	return planWithCommitlint(ctx, ws, rules, placement, view)
 }

@@ -140,6 +140,12 @@ func (r runner) runScreen(model tea.Model) (final tea.Model, cancelled, ok bool)
 func (r runner) plainReview(cfg reviewConfig) reviewOutcome {
 	cancel := reviewOutcome{action: reviewCancel}
 	t := func(key string, params map[string]string) string { return i18n.Render(r.lang, key, params) }
+	if len(cfg.plan.Commits) > 1 {
+		r.printCommits(cfg.plan.Commits)
+		if r.confirm(t("cli.prompt.split", map[string]string{"count": strconv.Itoa(len(cfg.plan.Commits))})) {
+			return r.plainSplitReview(cfg)
+		}
+	}
 	proposed := cfg.plan.Title
 	if choices := cfg.plan.TypeChoices; len(choices) > 0 {
 		picked, ok := r.askType(choices)
@@ -181,6 +187,69 @@ func (r runner) plainReview(cfg reviewConfig) reviewOutcome {
 		return cancel
 	}
 	return reviewOutcome{action: reviewShip, title: title, branch: branch, why: why, tested: tested, only: cfg.only}
+}
+
+// printCommits lists the commits of a split by intent, with what each does
+// and the files it touches.
+func (r runner) printCommits(commits []app.CommitView) {
+	r.status(i18n.Render(r.lang, "cli.split.header", map[string]string{"count": strconv.Itoa(len(commits))}))
+	for i, c := range commits {
+		var files []string
+		for _, h := range c.Hunks {
+			if !slices.Contains(files, h.Path) {
+				files = append(files, h.Path)
+			}
+		}
+		r.status(i18n.Render(r.lang, "cli.split.commit", map[string]string{
+			"position": strconv.Itoa(i + 1), "title": c.Title,
+			"reason": i18n.Render(r.lang, c.Reason.Key, c.Reason.Params), "files": strings.Join(files, ", "),
+		}))
+	}
+}
+
+// plainSplitReview asks for the title of each commit of a split by intent,
+// then the branch, why and how it was tested (they go into the last
+// commit), then whether to ship: one line each, as plainReview does.
+func (r runner) plainSplitReview(cfg reviewConfig) reviewOutcome {
+	cancel := reviewOutcome{action: reviewCancel}
+	t := func(key string, params map[string]string) string { return i18n.Render(r.lang, key, params) }
+	commits := make([]app.CommitSpec, 0, len(cfg.plan.Commits))
+	for i, c := range cfg.plan.Commits {
+		title, ok := r.askValid(t("cli.prompt.commit_title", map[string]string{"position": strconv.Itoa(i + 1), "default": c.Title}), c.Title,
+			func(v string) *app.Fault {
+				if check := cfg.conventions.CheckTitle(v); !check.Valid() {
+					return check.Faults[0]
+				}
+				return nil
+			})
+		if !ok {
+			return cancel
+		}
+		spec := app.CommitSpec{Title: title}
+		for _, h := range c.Hunks {
+			spec.Hunks = append(spec.Hunks, h.Ref())
+		}
+		commits = append(commits, spec)
+	}
+	branch := cfg.plan.Branch
+	if cfg.plan.CreatesBranch {
+		var ok bool
+		if branch, ok = r.askValid(t("cli.prompt.branch", map[string]string{"default": branch}), branch, func(v string) *app.Fault {
+			return cfg.checkBranch(v).Fault
+		}); !ok {
+			return cancel
+		}
+	}
+	why, ok := r.askOptional("cli.prompt.why", cfg.why)
+	if !ok {
+		return cancel
+	}
+	tested, ok := r.askOptional("cli.prompt.tested", cfg.tested)
+	if !ok || !r.confirm(t("cli.ship.confirm", nil)) {
+		return cancel
+	}
+	return reviewOutcome{action: reviewShip, title: cfg.plan.Title, branch: branch, why: why, tested: tested,
+		commits: commits, hunksDigest: cfg.plan.HunksDigest}
 }
 
 // plainStackReview asks for the title and the branch of each layer, bottom

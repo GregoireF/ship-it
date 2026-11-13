@@ -44,6 +44,10 @@ export type ShipDeliverResult = {
     short_id: string;
   };
   commit: string;
+  commits?: {
+    commit: string;
+    title: string;
+  }[] | null;
   created_branch: boolean;
   dry_run?: boolean;
   gates?: {
@@ -92,6 +96,22 @@ export type ShipLogResult = {
 
 export type ShipPlanResult = {
   branch: string;
+  commits?: ({
+    hunks: ({
+      added?: string[] | null;
+      index: number;
+      new_start?: number;
+      old_start?: number;
+      path: string;
+      removed?: string[] | null;
+    })[] | null;
+    reason: {
+      key: string;
+      params?: Record<string, string> | null;
+      text?: string;
+    };
+    title: string;
+  })[] | null;
   conventions?: {
     branch_format: string;
     branch_max_words: number;
@@ -113,6 +133,7 @@ export type ShipPlanResult = {
   creates_branch: boolean;
   current_branch?: string;
   files: string[] | null;
+  hunks_digest?: string;
   reasons: ({
     key: string;
     params?: Record<string, string> | null;

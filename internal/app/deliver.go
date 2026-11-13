@@ -8,10 +8,12 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/GregoireF/ship-it/internal/core/atomic"
 	"github.com/GregoireF/ship-it/internal/core/config"
 	"github.com/GregoireF/ship-it/internal/core/convention"
 	"github.com/GregoireF/ship-it/internal/core/fault"
 	"github.com/GregoireF/ship-it/internal/core/oplog"
+	"github.com/GregoireF/ship-it/internal/core/snapshot"
 	"github.com/GregoireF/ship-it/internal/ports"
 )
 
@@ -66,6 +68,12 @@ type DeliveryRequest struct {
 	// that ship.gates.beforeCommit runs before the commit.
 	SkipGates    bool
 	GateObserver GateObserver
+	// Commits splits the delivery into several commits (#34), from the
+	// plan's PlanView.Commits as reviewed; HunksDigest is the plan's, to
+	// refuse work that changed since. Title and Branch still name the
+	// branch; Why and Tested go into the last commit. Ignored with Only.
+	Commits     []CommitSpec
+	HunksDigest string
 }
 
 // DeliveryResult reports what changed in the repository.
@@ -81,6 +89,9 @@ type DeliveryResult struct {
 	// GatesDeferred: the gates are on and did not run before the commit;
 	// they run at publication (ship check gates runs them now).
 	GatesDeferred bool `json:"gates_deferred,omitempty"`
+	// Commits lists every commit of a delivery split by intent, oldest
+	// first; Commit and Title are then the last one's.
+	Commits []CommittedView `json:"commits,omitempty"`
 	// Rehearsal: on a dry run, Commit is empty and Planned lists the steps.
 	Rehearsal
 }
@@ -159,28 +170,58 @@ func DeliverLocally(ctx context.Context, ws Workspace, req DeliveryRequest) (res
 	}
 	placement := placementWith(ctx, ws, eff, reads)
 	rules := eff.Settings.Conventions()
-	check := checkTitleAs(rules, req.Title, placement, ticket)
 	// Rule zero: the project's commitlint, when installed, decides the style
 	// and validates the very message, right before anything changes.
 	lint := projectCommitlint(ctx, ws)
 	if lint != nil {
-		check.Faults = withoutFaults(check.Faults, givingWayTo(lint, eff))
 		rules.BodyWidth = bodyWidthWith(lint, rules)
 	}
-	if !check.Valid() {
-		return DeliveryResult{}, check.Faults[0]
-	}
-	if lint != nil {
+	final := func(title, why, tested string) (string, error) {
+		check := checkTitleAs(rules, title, placement, ticket)
+		if lint != nil {
+			check.Faults = withoutFaults(check.Faults, givingWayTo(lint, eff))
+		}
+		if !check.Valid() {
+			return "", check.Faults[0]
+		}
+		if lint == nil {
+			return check.Canonical, nil
+		}
 		header, err := rules.ParseHeader(check.Canonical)
 		if err != nil {
-			return DeliveryResult{}, asFault(err)
+			return "", asFault(err)
 		}
-		full := func(title string) string { return rules.CommitMessage(title, req.Why, req.Tested) }
-		if check.Canonical, _, err = followCommitlint(ctx, ws, lint, rules, header, placement, full); err != nil {
+		full := func(t string) string { return rules.CommitMessage(t, why, tested) }
+		canonical, _, err := followCommitlint(ctx, ws, lint, rules, header, placement, full)
+		return canonical, err
+	}
+	// Several commits (#34): the work must be the one reviewed and every
+	// title valid, before anything changes. req.Title then names the
+	// branch only.
+	var atomicFiles []snapshot.FileDiff
+	var stages [][]atomic.Stage
+	var messages []string
+	var title string
+	if len(req.Commits) < 2 || len(req.Only) > 0 || status.Branch.Commit == "" {
+		if title, err = final(req.Title, req.Why, req.Tested); err != nil {
 			return DeliveryResult{}, err
 		}
+	} else {
+		if atomicFiles, stages, err = atomicStages(ctx, ws, status, req); err != nil {
+			return DeliveryResult{}, err
+		}
+		for i, c := range req.Commits {
+			why, tested := "", ""
+			if i == len(req.Commits)-1 {
+				why, tested = req.Why, req.Tested
+			}
+			t, err := final(c.Title, why, tested)
+			if err != nil {
+				return DeliveryResult{}, err
+			}
+			messages = append(messages, rules.CommitMessage(t, why, tested))
+		}
 	}
-
 	// Sign-off and signature (ship.commits.signoff, sign): a signature
 	// without a key stops here, before anything changes.
 	commitOpts, err := commitOptions(ctx, ws, eff)
@@ -199,7 +240,7 @@ func DeliverLocally(ctx context.Context, ws Workspace, req DeliveryRequest) (res
 	if err != nil {
 		return DeliveryResult{}, err
 	}
-	result = DeliveryResult{Checkpoint: viewOf(checkpoint), Branch: status.Branch.Name, Title: check.Canonical}
+	result = DeliveryResult{Checkpoint: viewOf(checkpoint), Branch: status.Branch.Name, Title: title}
 	result.Gates = gateResults
 	result.GatesDeferred = eff.Settings.Ship.Gates.Enabled && ws.Runner != nil && len(gateResults) == 0
 	before := repositoryViewOf(status.Branch)
@@ -234,14 +275,21 @@ func DeliverLocally(ctx context.Context, ws Workspace, req DeliveryRequest) (res
 		result.Branch, result.CreatedBranch = branch, true
 	}
 
+	if stages != nil {
+		result.Commits, err = commitAtomically(ctx, ws, status.Branch.Commit, atomicFiles, stages, messages, commitOpts)
+		if n := len(result.Commits); n > 0 {
+			result.Commit, result.Title = result.Commits[n-1].Commit, result.Commits[n-1].Title
+		}
+		return result, err
+	}
 	var commit string
 	if len(req.Only) > 0 {
-		commit, err = ws.Git.CommitPaths(ctx, rules.CommitMessage(check.Canonical, req.Why, req.Tested), req.Only, commitOpts)
+		commit, err = ws.Git.CommitPaths(ctx, rules.CommitMessage(title, req.Why, req.Tested), req.Only, commitOpts)
 	} else {
 		if err := ws.Git.StageAll(ctx); err != nil {
 			return result, err
 		}
-		commit, err = ws.Git.Commit(ctx, rules.CommitMessage(check.Canonical, req.Why, req.Tested), commitOpts)
+		commit, err = ws.Git.Commit(ctx, rules.CommitMessage(title, req.Why, req.Tested), commitOpts)
 	}
 	if err != nil {
 		return result, err

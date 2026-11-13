@@ -607,6 +607,23 @@ Tested? (optional, Enter to skip):
 Ship it? [Y/n]
 ```
 
+### One commit per intent
+
+When the work does several things, the line-by-line review proposes one commit for each, read from the diff: a rename made in several places, formatting only, a new feature with its tests, the rest. A file can be split between commits, hunk by hunk; a file added, deleted, renamed or binary goes whole into one. `n` keeps one commit.
+
+```text
+This work does 2 things; ship can commit each one apart:
+  1. ♻️ refactor: rename total to sum
+     renames total to sum: cart.go
+  2. ✨ feat: add vat
+     adds declarations, with their tests: vat.go, vat_test.go
+Make 2 commits? (n: one commit) [Y/n]
+Commit 1 title [♻️ refactor: rename total to sum]:
+Commit 2 title [✨ feat: add vat]:
+```
+
+Then come the branch, why and how it was tested, which go into the last commit. The commits are made from the index, the working tree is never touched, and the last one leaves the files exactly as they are. `ship undo` takes them all back. If the work changes between the review and the delivery, nothing is committed (`SHIP-E0202`). With `--yes`, or through `ship mcp`, the work stays one commit. The review screen does not offer the split yet.
+
 ### The stack review screen
 
 `ship stack` shows its layers bottom first, each with its title, branch and files, and checks titles and branches as you type.
