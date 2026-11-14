@@ -84,3 +84,24 @@ func TestReleaseImpactOf(t *testing.T) {
 		}
 	}
 }
+
+// ParseVersion reads repository tags, which ship does not control: it must
+// never panic, and a version that parses must round-trip through String.
+func FuzzParseVersion(f *testing.F) {
+	for _, seed := range []string{"v1.2.3", "1.2.3", "v1.2.3-rc.1", "v1.2.3+build.5", "v0.0.0", "", "not-a-version", "v1.2", "v1.2.3-rc.1+build.7"} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, s string) {
+		v, err := ParseVersion(s)
+		if err != nil {
+			return
+		}
+		again, err := ParseVersion(v.String())
+		if err != nil {
+			t.Fatalf("ParseVersion(%q).String() = %q does not parse: %v", s, v.String(), err)
+		}
+		if again != v {
+			t.Fatalf("ParseVersion(%q) = %+v, round-trip gave %+v", s, v, again)
+		}
+	})
+}

@@ -176,3 +176,32 @@ func TestAdaptFollowsTheTypeTable(t *testing.T) {
 		t.Errorf("Adapt = %+v, %v", h, f)
 	}
 }
+
+// ParseConfig reads `commitlint --print-config json`, which the repository's
+// own configuration shapes: it must never panic, whatever it is given.
+func FuzzParseConfig(f *testing.F) {
+	for _, seed := range []string{
+		printed,
+		"npm warn something\n" + printed,
+		`{"rules":{"header-max-length":[2,"always",100]}}`,
+		`{"rules":{"subject-case":[2,"never",["sentence-case"]]}}`,
+		`{"rules":{"disabled":[0]}}`,
+		`{"rules":{}}`,
+		`{}`,
+		`not json`,
+		`{"rules":{"x":[{}]}}`,
+	} {
+		f.Add([]byte(seed))
+	}
+	f.Fuzz(func(t *testing.T, out []byte) {
+		cfg, err := ParseConfig(out)
+		if err != nil {
+			return
+		}
+		for name, rule := range cfg.Rules {
+			if rule.Applicable == "" {
+				t.Fatalf("ParseConfig(%q) left rule %q without an applicability", out, name)
+			}
+		}
+	})
+}
