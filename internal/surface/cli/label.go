@@ -15,6 +15,7 @@ import (
 // request, computed from what GitHub knows of it (triage.yml).
 func (r runner) label(args []string) int {
 	fs, asJSON := r.flags("label")
+	acceptsYes(fs)
 	number := fs.Int("pr", 0, "number of the pull request to label")
 	dryRun := dryRunFlag(fs)
 	if code, ok := r.parse(fs, args); !ok {
