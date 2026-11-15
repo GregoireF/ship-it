@@ -117,7 +117,7 @@ func Overlaps(mine, theirs []File) []string {
 		// A diff can repeat a path (found by FuzzParseDiff): keep every hunk
 		// instead of letting the last entry hide the earlier ranges.
 		if prev, ok := byPath[f.Path]; ok {
-			prev.Ranges = append(prev.Ranges, f.Ranges...)
+			prev.Ranges = slices.Concat(prev.Ranges, f.Ranges)
 			prev.Whole = prev.Whole || f.Whole
 			f = prev
 		}
