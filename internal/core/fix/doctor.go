@@ -26,7 +26,7 @@ func ParseGitVersion(s string) (GitVersion, bool) {
 	var numbers [3]int
 	for i := 0; i < 3 && i < len(parts); i++ {
 		n, err := strconv.Atoi(parts[i])
-		if err != nil {
+		if err != nil || n < 0 {
 			if i < 2 {
 				return GitVersion{}, false
 			}
