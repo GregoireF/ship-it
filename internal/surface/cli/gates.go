@@ -51,6 +51,7 @@ func (r runner) printRedGate(g app.GateResult) {
 // without committing or pushing. A red gate exits 3, as for a publication.
 func (r runner) checkGates(args []string) int {
 	fs, asJSON := r.flags("check gates")
+	acceptsYes(fs)
 	dryRun := dryRunFlag(fs)
 	if code, ok := r.parse(fs, args); !ok {
 		return code

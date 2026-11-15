@@ -77,7 +77,7 @@ The flags mean what they mean for `ship`. Exits `3` when the changes hold a secr
 Pushes the current branch and opens its pull request, or updates the one already open.
 
 ```text
-ship publish [--draft] [--issue N] [--skip-gates] [--dry-run] [--json]
+ship publish [--draft] [--issue N] [--skip-gates] [--dry-run] [--yes] [--json]
 ```
 
 | Flag | Meaning |
@@ -85,6 +85,7 @@ ship publish [--draft] [--issue N] [--skip-gates] [--dry-run] [--json]
 | `--draft` | Open the pull request as a draft. |
 | `--issue N` | The linked issue. By default it is read from the branch name: `feat/42-add-login` closes `#42`. |
 | `--skip-gates` | Push without running the gates. The pull request says so. |
+| `--yes`, `-y` | Open the pull request as a draft, as unattended runs do. |
 
 Before the push, ship rebases on the base when it moved, checks the branch and commits against the repository's rulesets, and runs the gates. The pull request gets the `kind/`, `area/` (from the commit scope) and `size/` labels the repository has. The URL of the pull request is the last line of stdout.
 
@@ -154,7 +155,7 @@ The flags mean what they mean for `ship stack`.
 Runs the project's checks now, the same [gates](gates.md) a push runs, without committing or pushing anything.
 
 ```text
-ship check gates [--json]
+ship check gates [--yes] [--json]
 ```
 
 Use it to see whether your work would get through before you ship it. When `ship.gates.beforeCommit` is set, `ship` also runs them before each commit.
@@ -314,7 +315,7 @@ It handles your identity (a GitHub noreply address), long paths on Windows, a mi
 After your pull request merged: goes back to the up-to-date base with your work in progress, and deletes the merged branches.
 
 ```text
-ship tidy [--dry-run] [--json]
+ship tidy [--dry-run] [--yes] [--json]
 ```
 
 The work in progress moves as a whole or not at all. `ship` runs it first, except with `--local`; offline, it only warns. `ship undo` creates the branches again.
@@ -355,7 +356,7 @@ Built-in default.
 Creates `.github/ship.json` with the `area/*` labels found in the commit scopes of the history. It never overwrites an existing file and does not touch GitHub.
 
 ```text
-ship init [--dry-run] [--json]
+ship init [--dry-run] [--yes] [--json]
 ```
 
 ### `ship sync`
@@ -383,7 +384,7 @@ ship roadmap sync [--file <path>] [--yes] [--dry-run] [--json]
 Puts on pull request N the `kind/`, `area/` and `size/` labels ship would have set, computed from its commits and files as GitHub lists them (up to 250 commits and 3,000 files). It is meant for pull requests not opened with ship, from forks included, for example in a workflow.
 
 ```text
-ship label --pr N [--dry-run] [--json]
+ship label --pr N [--dry-run] [--yes] [--json]
 ```
 
 Only labels the repository has are used. Once a `size/` label is there, only the size is refreshed.

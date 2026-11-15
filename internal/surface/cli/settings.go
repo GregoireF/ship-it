@@ -61,6 +61,7 @@ func (r runner) config(args []string) int {
 // initCommand writes .github/ship.json; GitHub is changed by `ship sync`.
 func (r runner) initCommand(args []string) int {
 	fs, asJSON := r.flags("init")
+	acceptsYes(fs)
 	dryRun := dryRunFlag(fs)
 	if code, ok := r.parse(fs, args); !ok {
 		return code
