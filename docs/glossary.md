@@ -46,7 +46,7 @@ The words you meet in ship-it's messages and documentation, in one or two senten
 
 **Rebase**: Replaying your commits on top of the latest base branch, as if you had started from it. ship does it before publishing when the base has moved.
 
-**Release**: A published version of the project, usually a tag with notes. ship writes the version and the changelog entry; GitHub publishes the release.
+**Release**: A published version of the project, usually a tag with notes, listed on the repository's Releases page on GitHub.
 
 **Remote**: A repository on another computer, usually GitHub, that your commits are pushed to. `origin` is the remote you cloned from.
 
@@ -60,7 +60,7 @@ The words you meet in ship-it's messages and documentation, in one or two senten
 
 **Stack** (stacked pull requests): Several pull requests that build on each other, each based on the branch before it, so a large change is reviewed in small pieces. `ship stack` plans and publishes them.
 
-**Tag**: A name for one commit, usually a version such as `v1.2.0`. ship reads the latest one to pick the next version.
+**Tag**: A name for one commit, usually a version such as `v1.2.0`.
 
 **Undo**: `ship undo` reverts the last thing ship did (a commit, a publication, a configuration change) and keeps your files.
 
