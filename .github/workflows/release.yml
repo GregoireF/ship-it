@@ -12,10 +12,9 @@
 # 3. the image ghcr.io/gregoiref/ship (linux/amd64 + linux/arm64, buildx
 #    with QEMU): GoReleaser pushes it, cosign signs it (docker_signs) and
 #    attest-build-provenance attaches a provenance to its index in GHCR;
-# 4. GoReleaser pushes the Scoop manifest to GregoireF/homebrew-tap over SSH
-#    with a deploy key, then the job pushes the Homebrew formula written by
-#    scripts/homebrew-formula.sh with the same key (both skipped for a
-#    pre-release).
+# 4. nothing for Homebrew and Scoop: the tap GregoireF/homebrew-tap pulls
+#    each stable release on its own and verifies its provenance; this
+#    workflow holds no secret that writes there.
 # The release job waits for the owner's approval in the `release` environment.
 # Verify a download: docs/design/workflows.md §5 (cosign verify-blob or
 # gh attestation verify).
@@ -115,10 +114,6 @@ jobs:
           args: release --clean --release-notes=${{ runner.temp }}/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Private half of a deploy key that can write to GregoireF/homebrew-tap
-          # only: GoReleaser pushes the Scoop manifest there. A secret of the `release` environment, so only this job,
-          # after approval, can read it (docs/design/workflows.md §5).
-          HOMEBREW_TAP_SSH_KEY: ${{ secrets.HOMEBREW_TAP_SSH_KEY }}
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-checksums: dist/checksums.txt
@@ -139,40 +134,3 @@ jobs:
           subject-name: ghcr.io/gregoiref/ship
           subject-digest: ${{ steps.image.outputs.digest }}
           push-to-registry: true
-      # Homebrew formula Formula/ship.rb in GregoireF/homebrew-tap, written
-      # from dist/checksums.txt by scripts/homebrew-formula.sh (GoReleaser's
-      # own generator, `brews`, is deprecated: see .goreleaser.yaml) and
-      # pushed over SSH with the deploy key GoReleaser used for Scoop. A
-      # pre-release does not replace it, like skip_upload: auto for Scoop.
-      # The only trusted host key is GitHub's published ed25519 key
-      # (https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints).
-      - name: homebrew formula
-        env:
-          TAG: ${{ github.ref_name }}
-          HOMEBREW_TAP_SSH_KEY: ${{ secrets.HOMEBREW_TAP_SSH_KEY }}
-        run: |
-          set -euo pipefail
-          core="${TAG%%+*}"
-          if [[ "$core" == *-* ]]; then
-            echo "pre-release $TAG: the formula is not updated"
-            exit 0
-          fi
-          work="$(mktemp -d)"
-          trap 'rm -rf -- "$work"' EXIT
-          sh scripts/homebrew-formula.sh "$TAG" dist/checksums.txt > "$work/ship.rb"
-          (umask 077 && printf '%s\n' "$HOMEBREW_TAP_SSH_KEY" > "$work/key")
-          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" > "$work/known_hosts"
-          export GIT_SSH_COMMAND="ssh -i $work/key -o IdentitiesOnly=yes -o UserKnownHostsFile=$work/known_hosts -o StrictHostKeyChecking=yes"
-          git clone --depth 1 --branch main git@github.com:GregoireF/homebrew-tap.git "$work/tap"
-          mkdir -p "$work/tap/Formula"
-          cp "$work/ship.rb" "$work/tap/Formula/ship.rb"
-          cd "$work/tap"
-          git add Formula/ship.rb
-          if git diff --cached --quiet; then
-            echo "Formula/ship.rb is already up to date"
-            exit 0
-          fi
-          git -c user.name="github-actions[bot]" \
-            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-            commit -m "ship $TAG"
-          git push origin HEAD:main

@@ -132,43 +132,13 @@ docker_signs:
       - "${artifact}@${digest}"
       - "--yes"
 
-# Homebrew: no section here. The formula Formula/ship.rb of the tap
-# GregoireF/homebrew-tap (brew install gregoiref/tap/ship) is written by
-# scripts/homebrew-formula.sh from dist/checksums.txt and pushed by the
-# release workflow after this run, over SSH with the same deploy key.
-# Not a cask: the macOS binaries are not signed nor notarized, so a cask
-# would have to strip the quarantine attribute, which Homebrew maintainers
-# advise against (https://github.com/orgs/Homebrew/discussions/7050), and a
-# cask does not install on Linux. Not GoReleaser's formula generator either:
-# `brews` is deprecated (https://goreleaser.com/deprecations/#brews) and
-# makes `goreleaser check` fail.
-# Scoop manifest in the same repository, under bucket/ship.json:
-#   scoop bucket add gregoiref https://github.com/GregoireF/homebrew-tap
-#   scoop install ship
-# Scoop reads a bucket's manifests from its bucket/ folder when there is one
-# (Find-BucketDirectory, and `scoop bucket list` counts that folder:
-# https://github.com/ScoopInstaller/Scoop/blob/master/lib/buckets.ps1), so
-# one repository serves Homebrew and Scoop. GoReleaser's warning about a
-# directory concerns other folder names. It uses the Windows zip archives.
-# Reference: https://goreleaser.com/customization/publish/scoop/
-scoops:
-  - name: ship
-    directory: bucket
-    homepage: https://github.com/GregoireF/ship-it
-    description: "You write the code, ship handles git and GitHub"
-    license: Apache-2.0
-    repository:
-      owner: GregoireF
-      name: homebrew-tap
-      branch: main
-      # Pushed over SSH with a deploy key that can write to this repository
-      # only (secret HOMEBREW_TAP_SSH_KEY: the key itself, not a path).
-      # https://goreleaser.com/customization/publish/scoop/ (repository.git)
-      git:
-        url: "git@github.com:GregoireF/homebrew-tap.git"
-        private_key: "{{ .Env.HOMEBREW_TAP_SSH_KEY }}"
-    commit_msg_template: "ship {{ .Tag }} (scoop)"
-    skip_upload: auto
+# Homebrew and Scoop: no section here. The tap GregoireF/homebrew-tap pulls
+# each stable release on its own (its sync.yml, every 30 minutes): it checks
+# the archives against checksums.txt and their build provenance, writes
+# Formula/ship.rb and bucket/ship.json, tests the installs, then publishes.
+# This repository holds no secret for it. The archive names, the binary and
+# the `ship version` test are declared in the tap's tools.yml: rename an
+# archive here only together with that file.
 
 # Unused by release.yml, which passes the CHANGELOG.md section with
 # --release-notes; kept for a local `goreleaser release --snapshot`.
