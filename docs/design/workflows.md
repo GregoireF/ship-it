@@ -86,6 +86,7 @@ Written in English. Follows [zizmor](https://docs.zizmor.sh)'s audits. Nothing h
 | `triage.yml` | `pull_request`, `issues` (opened), hourly, manual | `label`: `contents: read`, `pull-requests: write`, `issues: write`. `welcome`: `issues: write`, `pull-requests: write` | `ship label` and the first-time contributor welcome, without `pull_request_target` (§9). |
 | `stale.yml` | daily, manual | `issues: write`, `pull-requests: write` | `actions/stale` and `dessant/lock-threads`, conservative (§9). |
 | `labels.yml` | push to `main` changing `.github/ship.json` or the workflow, manual | `contents: read`, `issues: write` | `ship sync --yes`: GitHub labels as code (§9). |
+| `install-scripts-ci.yml` | `pull_request`, push to `main` (both only when `scripts/` or the workflow change), weekly, manual | every job `contents: read` | The install scripts (#97) run against the latest release — `install.sh` on Ubuntu, in an Alpine container and on macOS, `install.ps1` on Windows (PowerShell 7 and 5.1) — then `ship version` answers; each script must also stop on a wrong checksum. Installs go to a temporary directory (`SHIP_INSTALL_DIR`), never the runner's home. |
 
 ### Dependabot
 `gomod` (root), `github-actions` (root) and `npm` (`extensions/vscode`), weekly. **Cooldown of 7 days** for version updates (zizmor: `dependabot-cooldown`; security updates are not delayed). Minor and patch updates are **grouped** in one PR per ecosystem (npm: one group for development and one for production dependencies); a major update keeps its own PR.
