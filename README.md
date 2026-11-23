@@ -23,6 +23,11 @@ Early: works on Linux, macOS and Windows, with GitHub. What comes next is on the
 <br>
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Good first issues](https://img.shields.io/github/issues/GregoireF/ship-it/good%20first%20issue?label=good%20first%20issues&color=7057ff)](https://github.com/GregoireF/ship-it/issues?q=is%3Aopen+label%3A%22good+first+issue%22)
+<br>
+[![homebrew](https://img.shields.io/endpoint?url=https://gregoiref.github.io/homebrew-tap/badges/ship/homebrew.json)](https://gregoiref.github.io/homebrew-tap/ship/)
+[![scoop](https://img.shields.io/endpoint?url=https://gregoiref.github.io/homebrew-tap/badges/ship/scoop.json)](https://gregoiref.github.io/homebrew-tap/ship/)
+[![provenance](https://img.shields.io/endpoint?url=https://gregoiref.github.io/homebrew-tap/badges/ship/provenance.json)](https://gregoiref.github.io/homebrew-tap/ship/)
+[![install-tests](https://img.shields.io/endpoint?url=https://gregoiref.github.io/homebrew-tap/badges/ship/install-tests.json)](https://gregoiref.github.io/homebrew-tap/ship/)
 
 [Install](#install) · [Quick start](#quick-start) · [Documentation](docs/README.md) · [Compared to GitHub](docs/explanation/compared-to-github.md) · [Roadmap](ROADMAP.md)
 
@@ -100,7 +105,7 @@ irm https://raw.githubusercontent.com/GregoireF/ship-it/main/scripts/install.ps1
 scoop bucket add gregoiref https://github.com/GregoireF/homebrew-tap; scoop install ship
 ```
 
-The scripts check the archive against the release's checksums, and their signature when cosign is installed. You need git 2.43 or later; `ship doctor` tells you if anything else is missing. [Install, update and remove](docs/how-to/install.md) has the details, the container image and how to leave no trace.
+The scripts check the archive against the release's checksums, and their signature when cosign is installed. You need git 2.43 or later; `ship doctor` tells you if anything else is missing. [Install, update and remove](docs/how-to/install.md) has the details, the container image and how to leave no trace. The [tap's catalog page](https://gregoiref.github.io/homebrew-tap/ship/) lists every package manager that serves ship (Homebrew, Scoop, WinGet, Nix, aqua) and how to verify a download.
 
 ## Quick start
 
