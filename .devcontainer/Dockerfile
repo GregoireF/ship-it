@@ -10,4 +10,4 @@
 # It lives in a Dockerfile rather than in devcontainer.json "image" so that
 # Dependabot (docker ecosystem, .github/dependabot.yml) keeps the digest fresh.
 # Tag 2.3.3-1.27-trixie, index digest checked on mcr.microsoft.com 2026-10-23.
-FROM mcr.microsoft.com/devcontainers/go:2.3.5-1.27-trixie@sha256:32aad7e9eefed4fe99987cc4efef2f9723bd57c556f171143ecf65e0ba855ff3
+FROM mcr.microsoft.com/devcontainers/go:2.3.7-1.27-trixie@sha256:74f45fc4c2abe0de9a9acdb4225ffb3e58e6b28f9af2e209afaa8920a3d3b623
